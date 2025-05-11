@@ -1,0 +1,8 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'>
+<circle cx='10.00' cy='50.00' r='15.00' stroke='azul' fill='none'/>
+<rect x='0.00' y='0.00' width='30.00' height='30.00' stroke='azul' fill='none'/>
+<!-- Loop iniciado -->
+<g>
+<line x1='0.00' y1='200.00' x2='30.00' y2='250.00' stroke='vermelho'/>
+</g>
+</svg>

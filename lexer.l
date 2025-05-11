@@ -1,5 +1,6 @@
 %{
 #include "parser.tab.h"
+#include <stdlib.h>
 #include <string.h>
 %}
 
@@ -19,38 +20,52 @@ identifier {letter}({letter}|{digit}|_)*
 "repetir"           { return REPETIR; }
 "vezes"             { return VEZES; }
 
-"x"                { return X; }
-"y"                { return Y; }
-"x1"               { return X1; }
-"y1"               { return Y1; }
-"x2"               { return X2; }
-"y2"               { return Y2; }
-"raio"             { return RAIO; }
-"largura"          { return LARGURA; }
-"altura"           { return ALTURA; }
+"x1"                { return X1; }
+"y1"                { return Y1; }
+"x2"                { return X2; }
+"y2"                { return Y2; }
+"x"                 { return X; }
+"y"                 { return Y; }
+"raio"              { return RAIO; }
+"largura"           { return LARGURA; }
+"altura"            { return ALTURA; }
 
-"=="               { return EQ; }
-">="               { return GE; }
-"<="               { return LE; }
-"!="               { return NE; }
-">"                { return GT; }
-"<"                { return LT; }
+"=="                { return EQ; }
+">="                { return GE; }
+"<="                { return LE; }
+"!="                { return NE; }
+">"                 { return GT; }
+"<"                 { return LT; }
 
-"="                { return ASSIGN; }
-"+="               { return PLUS_ASSIGN; }
-"-="               { return MINUS_ASSIGN; }
+"+="                { return PLUS_ASSIGN; }
+"-="                { return MINUS_ASSIGN; }
+"="                 { return ASSIGN; }
 
-\"[^"]*\"          { yylval.str = strdup(yytext); return STRING; }
-{identifier}       { yylval.str = strdup(yytext); return IDENTIFIER; }
-{digit}+(\.{digit}+)?  { yylval.num = atof(yytext); return NUMBER; }
+\"[^\"]*\" {
+    int len = yyleng - 2;
+    yylval.str = (char*)malloc(len + 1);
+    strncpy(yylval.str, yytext + 1, len);
+    yylval.str[len] = '\0';
+    return STRING;
+}
 
-"{"                { return LBRACE; }
-"}"                { return RBRACE; }
-"("                { return LPAREN; }
-")"                { return RPAREN; }
+{identifier} {
+    yylval.str = strdup(yytext);
+    return IDENTIFIER;
+}
 
-[ \t\r\n]+         ; // Ignora espaços
+{digit}+(\.{digit}+)? {
+    yylval.num = atof(yytext);
+    return NUMBER;
+}
 
-.                  { return *yytext; }
+"{"                 { return LBRACE; }
+"}"                 { return RBRACE; }
+"("                 { return LPAREN; }
+")"                 { return RPAREN; }
+
+[ \t\r\n]+          ; // ignora espaços
+"//".*              ; // ignora comentários
+.                   { return *yytext; }
 
 %%
