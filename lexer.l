@@ -1,7 +1,7 @@
 %{
 #include "parser.tab.h"
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 %}
 
 digit      [0-9]
@@ -19,53 +19,56 @@ identifier {letter}({letter}|{digit}|_)*
 "se"                { return SE; }
 "repetir"           { return REPETIR; }
 "vezes"             { return VEZES; }
-
+"x"                 { return X; }
+"y"                 { return Y; }
 "x1"                { return X1; }
 "y1"                { return Y1; }
 "x2"                { return X2; }
 "y2"                { return Y2; }
-"x"                 { return X; }
-"y"                 { return Y; }
 "raio"              { return RAIO; }
 "largura"           { return LARGURA; }
 "altura"            { return ALTURA; }
+"=="                { return IGUAL; }
+"!="                { return DIFERENTE; }
+">="                { return MAIORIGUAL; }
+"<="                { return MENORIGUAL; }
+">"                 { return MAIOR; }
+"<"                 { return MENOR; }
+"="                 { return ATRIB; }
+"+="                { return MAISIGUAL; }
+"-="                { return MENOSIGUAL; }
+"+"                 { return MAIS; }
+"-"                 { return MENOS; }
+"*"                 { return VEZES_OP; }
+"/"                 { return DIV; }
 
-"=="                { return EQ; }
-">="                { return GE; }
-"<="                { return LE; }
-"!="                { return NE; }
-">"                 { return GT; }
-"<"                 { return LT; }
-
-"+="                { return PLUS_ASSIGN; }
-"-="                { return MINUS_ASSIGN; }
-"="                 { return ASSIGN; }
-
-\"[^\"]*\" {
-    int len = yyleng - 2;
-    yylval.str = (char*)malloc(len + 1);
-    strncpy(yylval.str, yytext + 1, len);
-    yylval.str[len] = '\0';
+\"([^\\\"]|\\.)*\"  {
+    yylval.str = strdup(yytext + 1);  // remove aspas
+    yylval.str[strlen(yylval.str) - 1] = '\0';
     return STRING;
 }
 
 {identifier} {
     yylval.str = strdup(yytext);
-    return IDENTIFIER;
+    return ID;
 }
 
 {digit}+(\.{digit}+)? {
-    yylval.num = atof(yytext);
-    return NUMBER;
+    yylval.fval = atof(yytext);
+    return NUM;
 }
 
-"{"                 { return LBRACE; }
-"}"                 { return RBRACE; }
-"("                 { return LPAREN; }
-")"                 { return RPAREN; }
+"{"                 { return ABRECHAVE; }
+"}"                 { return FECHACHAVE; }
+"("                 { return ABREPAR; }
+")"                 { return FECHAPAR; }
 
-[ \t\r\n]+          ; // ignora espaços
-"//".*              ; // ignora comentários
-.                   { return *yytext; }
+[ \t\r\n]+          { /* ignora espaços e quebras de linha */ }
+
+.                   { return yytext[0]; }
 
 %%
+
+int yywrap() {
+    return 1;
+}

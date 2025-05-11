@@ -54,9 +54,9 @@ extern int yydebug;
     YYEOF = 0,                     /* "end of file"  */
     YYerror = 256,                 /* error  */
     YYUNDEF = 257,                 /* "invalid token"  */
-    NUMBER = 258,                  /* NUMBER  */
-    STRING = 259,                  /* STRING  */
-    IDENTIFIER = 260,              /* IDENTIFIER  */
+    STRING = 258,                  /* STRING  */
+    ID = 259,                      /* ID  */
+    NUM = 260,                     /* NUM  */
     CIRCULO = 261,                 /* CIRCULO  */
     RETANGULO = 262,               /* RETANGULO  */
     LINHA = 263,                   /* LINHA  */
@@ -75,19 +75,23 @@ extern int yydebug;
     RAIO = 276,                    /* RAIO  */
     LARGURA = 277,                 /* LARGURA  */
     ALTURA = 278,                  /* ALTURA  */
-    EQ = 279,                      /* EQ  */
-    GE = 280,                      /* GE  */
-    LE = 281,                      /* LE  */
-    NE = 282,                      /* NE  */
-    GT = 283,                      /* GT  */
-    LT = 284,                      /* LT  */
-    ASSIGN = 285,                  /* ASSIGN  */
-    PLUS_ASSIGN = 286,             /* PLUS_ASSIGN  */
-    MINUS_ASSIGN = 287,            /* MINUS_ASSIGN  */
-    LBRACE = 288,                  /* LBRACE  */
-    RBRACE = 289,                  /* RBRACE  */
-    LPAREN = 290,                  /* LPAREN  */
-    RPAREN = 291                   /* RPAREN  */
+    IGUAL = 279,                   /* IGUAL  */
+    DIFERENTE = 280,               /* DIFERENTE  */
+    MAIORIGUAL = 281,              /* MAIORIGUAL  */
+    MENORIGUAL = 282,              /* MENORIGUAL  */
+    MAIOR = 283,                   /* MAIOR  */
+    MENOR = 284,                   /* MENOR  */
+    ATRIB = 285,                   /* ATRIB  */
+    MAISIGUAL = 286,               /* MAISIGUAL  */
+    MENOSIGUAL = 287,              /* MENOSIGUAL  */
+    MAIS = 288,                    /* MAIS  */
+    MENOS = 289,                   /* MENOS  */
+    VEZES_OP = 290,                /* VEZES_OP  */
+    DIV = 291,                     /* DIV  */
+    ABRECHAVE = 292,               /* ABRECHAVE  */
+    FECHACHAVE = 293,              /* FECHACHAVE  */
+    ABREPAR = 294,                 /* ABREPAR  */
+    FECHAPAR = 295                 /* FECHAPAR  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -96,13 +100,13 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 74 "parser.y"
+#line 23 "parser.y"
 
-    double num;
     char* str;
-    int op;
+    float fval;
+    void* generic;
 
-#line 106 "parser.tab.h"
+#line 110 "parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

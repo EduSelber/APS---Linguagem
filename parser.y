@@ -1,247 +1,204 @@
 %{
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <unordered_map>
+#include <string>
+#include <vector>
+#include <functional>
+#include <iostream>
 
-void yyerror(const char *msg);
-int yylex();
+using namespace std;
 
-FILE *svg_file;
-char current_color[64] = "black";
+using Statement = function<void()>;
+using StatementList = vector<Statement>;
 
-// Tabela de símbolos
-struct Var {
-    char name[64];
-    enum { NUM, STR } type;
-    union {
-        double num;
-        char str[128];
-    } value;
-};
+unordered_map<string, float> symbols;
 
-struct Var vars[100];
-int var_count = 0;
-
-void executar_loop(int vezes, void (*bloco)(void)) {
-    for (int i = 0; i < vezes; i++) {
-        bloco();
-    }
-}
-
-void temp_loop_block();
-
-void (*loop_fn)(void) = NULL;
-
-// Gerenciamento de variáveis
-
-double get_var(char* name) {
-    for (int i = 0; i < var_count; i++) {
-        if (strcmp(vars[i].name, name) == 0 && vars[i].type == NUM) {
-            return vars[i].value.num;
-        }
-    }
-    return 0;
-}
-
-void set_var_num(char* name, double value) {
-    for (int i = 0; i < var_count; i++) {
-        if (strcmp(vars[i].name, name) == 0) {
-            vars[i].type = NUM;
-            vars[i].value.num = value;
-            return;
-        }
-    }
-    strcpy(vars[var_count].name, name);
-    vars[var_count].type = NUM;
-    vars[var_count++].value.num = value;
-}
-
-void set_var_str(char* name, char* value) {
-    for (int i = 0; i < var_count; i++) {
-        if (strcmp(vars[i].name, name) == 0) {
-            vars[i].type = STR;
-            strcpy(vars[i].value.str, value);
-            return;
-        }
-    }
-    strcpy(vars[var_count].name, name);
-    vars[var_count].type = STR;
-    strcpy(vars[var_count++].value.str, value);
-}
+extern int yylex();
+extern FILE* yyin;
+void yyerror(const char* msg);
 %}
 
 %union {
-    double num;
     char* str;
-    int op;
+    float fval;
+    void* generic;
 }
 
-%token <num> NUMBER
-%token <str> STRING IDENTIFIER
+%token <str> STRING ID
+%token <fval> NUM
 %token CIRCULO RETANGULO LINHA COR GRUPO MOVER SE REPETIR VEZES
 %token X Y X1 Y1 X2 Y2 RAIO LARGURA ALTURA
-%token EQ GE LE NE GT LT
-%token ASSIGN PLUS_ASSIGN MINUS_ASSIGN
-%token LBRACE RBRACE LPAREN RPAREN
+%token IGUAL DIFERENTE MAIORIGUAL MENORIGUAL MAIOR MENOR
+%token ATRIB MAISIGUAL MENOSIGUAL MAIS MENOS VEZES_OP DIV
+%token ABRECHAVE FECHACHAVE ABREPAR FECHAPAR
 
-%type <num> expr condition
-%type <op> comparator
-
-%left '+' '-'
-%left '*' '/'
+%type <fval> expr term factor condition
+%type <generic> statement statements
 
 %%
 
 program:
-    /* vazio */
     {
-        svg_file = fopen("saida.svg", "w");
-        fprintf(svg_file, "<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'>\n");
+        printf("<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'>\n");
     }
-    | program statement
-;
-
-statement:
-    shape
-    | color
-    | group
-    | conditional
-    | loop
-    | assignment
+    statements {
+        auto* stmts = static_cast<StatementList*>($2);
+        for (auto& stmt : *stmts) stmt();
+        delete stmts;
+        printf("</svg>\n");
+    }
 ;
 
 statements:
-    statement
-    | statements statement
-;
-
-shape:
-    CIRCULO X expr Y expr RAIO expr
-    {
-        fprintf(svg_file, "<circle cx='%.2lf' cy='%.2lf' r='%.2lf' stroke='%s' fill='none'/>", $3, $5, $7, current_color);
-        fprintf(svg_file, "\n");
+    /* vazio */ {
+        $$ = new StatementList();
     }
-    | RETANGULO X expr Y expr LARGURA expr ALTURA expr
-    {
-        fprintf(svg_file, "<rect x='%.2lf' y='%.2lf' width='%.2lf' height='%.2lf' stroke='%s' fill='none'/>", $3, $5, $7, $9, current_color);
-        fprintf(svg_file, "\n");
-    }
-    | LINHA X1 expr Y1 expr X2 expr Y2 expr
-    {
-        fprintf(svg_file, "<line x1='%.2lf' y1='%.2lf' x2='%.2lf' y2='%.2lf' stroke='%s'/>", $3, $5, $7, $9, current_color);
-        fprintf(svg_file, "\n");
+    | statements statement {
+        auto* list = static_cast<StatementList*>($1);
+        auto* stmt = static_cast<Statement*>($2);
+        list->push_back(*stmt);
+        delete stmt;
+        $$ = list;
     }
 ;
 
-color:
-    COR STRING
-    {
-        strncpy(current_color, $2, sizeof(current_color));
-        free($2);
+statement:
+    CIRCULO X expr Y expr RAIO expr {
+        $$ = new Statement([=]() {
+            printf("<circle cx='%.2f' cy='%.2f' r='%.2f' stroke='black' fill='none'/>\n", $3, $5, $7);
+        });
     }
-;
-
-group:
-    GRUPO LBRACE statements RBRACE transform_opt
-;
-
-transform_opt:
-    /* vazio */
-    | MOVER X expr Y expr
-    {
-        fprintf(svg_file, "<g transform='translate(%.2lf,%.2lf)'>\n", $3, $5);
-        fprintf(svg_file, "</g>\n");
+  | RETANGULO X expr Y expr LARGURA expr ALTURA expr {
+        $$ = new Statement([=]() {
+            printf("<rect x='%.2f' y='%.2f' width='%.2f' height='%.2f' stroke='black' fill='none'/>\n", $3, $5, $7, $9);
+        });
     }
-;
-
-conditional:
-    SE condition LBRACE statements RBRACE
-    {
-        if (!$2) fseek(svg_file, 0, SEEK_END);
+  | LINHA X1 expr Y1 expr X2 expr Y2 expr {
+        $$ = new Statement([=]() {
+            printf("<line x1='%.2f' y1='%.2f' x2='%.2f' y2='%.2f' stroke='black'/>\n", $3, $5, $7, $9);
+        });
     }
-;
-
-loop:
-    REPETIR expr VEZES LBRACE
-    {
-        // Abrimos a função temporária
-        fprintf(svg_file, "<!-- Loop iniciado -->\n");
-        fprintf(svg_file, "<g>\n");
+  | COR expr {
+        $$ = new Statement([=]() {
+            printf("<!-- Cor atual: %.2f -->\n", $2);
+        });
     }
-    statements
-    RBRACE
-    {
-        fprintf(svg_file, "</g>\n");
-        executar_loop((int)$2, temp_loop_block);
+  | ID ATRIB expr {
+        char* raw = strdup($1);
+        $$ = new Statement([=]() {
+            symbols[string(raw)] = $3;
+            free(raw);
+        });
     }
-;
-
-assignment:
-    IDENTIFIER ASSIGN expr
-    {
-        set_var_num($1, $3);
+  | ID MAISIGUAL expr {
+        char* raw = strdup($1);
+        $$ = new Statement([=]() {
+            symbols[string(raw)] += $3;
+            free(raw);
+        });
     }
-    | IDENTIFIER PLUS_ASSIGN expr
-    {
-        set_var_num($1, get_var($1) + $3);
+  | ID MENOSIGUAL expr {
+        char* raw = strdup($1);
+        $$ = new Statement([=]() {
+            symbols[string(raw)] -= $3;
+            free(raw);
+        });
     }
-    | IDENTIFIER MINUS_ASSIGN expr
-    {
-        set_var_num($1, get_var($1) - $3);
+  | SE condition ABRECHAVE statements FECHACHAVE {
+        auto* block = static_cast<StatementList*>($4);
+        $$ = new Statement([=]() {
+            if ($2) {
+                for (auto& s : *block) s();
+            }
+            delete block;
+        });
+    }
+  | REPETIR expr VEZES ABRECHAVE statements FECHACHAVE {
+        auto* block = static_cast<StatementList*>($5);
+        $$ = new Statement([=]() {
+            for (int i = 0; i < (int)$2; i++) {
+                for (auto& s : *block) s();
+            }
+            delete block;
+        });
     }
 ;
 
 condition:
-    expr comparator expr
-    {
-        switch ($2) {
-            case EQ: $$ = ($1 == $3); break;
-            case NE: $$ = ($1 != $3); break;
-            case GE: $$ = ($1 >= $3); break;
-            case LE: $$ = ($1 <= $3); break;
-            case GT: $$ = ($1 > $3); break;
-            case LT: $$ = ($1 < $3); break;
-            default: $$ = 0;
-        }
+    ID IGUAL expr {
+        std::string var($1);
+        $$ = symbols[var] == $3;
+    }
+  | ID DIFERENTE expr {
+        std::string var($1);
+        $$ = symbols[var] != $3;
+    }
+  | ID MAIOR expr {
+        std::string var($1);
+        $$ = symbols[var] > $3;
+    }
+  | ID MENOR expr {
+        std::string var($1);
+        $$ = symbols[var] < $3;
+    }
+  | ID MAIORIGUAL expr {
+        std::string var($1);
+        $$ = symbols[var] >= $3;
+    }
+  | ID MENORIGUAL expr {
+        std::string var($1);
+        $$ = symbols[var] <= $3;
     }
 ;
 
-comparator:
-    EQ { $$ = EQ; }
-    | NE { $$ = NE; }
-    | GE { $$ = GE; }
-    | LE { $$ = LE; }
-    | GT { $$ = GT; }
-    | LT { $$ = LT; }
+expr:
+    term
+    | expr MAIS term { $$ = $1 + $3; }
+    | expr MENOS term { $$ = $1 - $3; }
 ;
 
-expr:
-    expr '+' expr     { $$ = $1 + $3; }
-    | expr '-' expr   { $$ = $1 - $3; }
-    | expr '*' expr   { $$ = $1 * $3; }
-    | expr '/' expr   { $$ = $1 / $3; }
-    | NUMBER          { $$ = $1; }
-    | IDENTIFIER      { $$ = get_var($1); }
-    | LPAREN expr RPAREN { $$ = $2; }
+term:
+    factor
+    | term VEZES_OP factor { $$ = $1 * $3; }
+    | term DIV factor { $$ = $1 / $3; }
+;
+
+factor:
+    NUM { $$ = $1; }
+  | ID {
+        std::string var($1);
+        if (!symbols.count(var)) {
+            std::cerr << "Aviso: variável '" << var << "' não inicializada, assumindo 0.\n";
+            symbols[var] = 0;
+        }
+        $$ = symbols[var];
+    }
+  | ABREPAR expr FECHAPAR { $$ = $2; }
+  | STRING { $$ = 0; }
 ;
 
 %%
 
-void temp_loop_block() {
-    // Este é um placeholder. O corpo real é executado em tempo de parsing
-}
-
-void yyerror(const char *msg) {
-    fprintf(stderr, "Erro: %s\n", msg);
-    if (svg_file) fclose(svg_file);
-}
-
-int main() {
-    yyparse();
-    if (svg_file) {
-        fprintf(svg_file, "</svg>\n");
-        fclose(svg_file);
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Uso: %s arquivo.txt\n", argv[0]);
+        return 1;
     }
+
+    FILE* file = fopen(argv[1], "r");
+    if (!file) {
+        perror("Erro ao abrir o arquivo");
+        return 1;
+    }
+
+    yyin = file;
+    yyparse();
+    fclose(file);
     return 0;
+}
+
+void yyerror(const char* msg) {
+    fprintf(stderr, "Erro: %s\n", msg);
 }
