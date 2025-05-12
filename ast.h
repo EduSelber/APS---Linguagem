@@ -1,7 +1,6 @@
 #ifndef AST_H
 #define AST_H
 
-// Forward declaration to avoid circular dependency
 typedef struct SymbolTable SymbolTable;
 
 typedef struct ASTNode ASTNode;
@@ -15,7 +14,9 @@ typedef enum {
     NODE_PROGRAM,
     NODE_EXPR_IDENT,
     NODE_EXPR_NUM,
-    NODE_EXPR_BINOP
+    NODE_EXPR_BINOP,
+    NODE_IF,
+    NODE_IF_ELSE
 } NodeType;
 
 struct ASTNode {
@@ -30,23 +31,25 @@ struct ASTNode {
         struct { char *ident; } expr_ident;
         struct { double num; } expr_num;
         struct { char op; ASTNode *left; ASTNode *right; } expr_binop;
+        struct { ASTNode *cond; ASTNode *if_body; } if_stmt;
+        struct { ASTNode *cond; ASTNode *if_body; ASTNode *else_body; } if_else_stmt;
     } data;
 };
 
-// AST Node Creation
+/* Node Creation */
 ASTNode* create_assign_node(char *id, ASTNode *expr);
 ASTNode* create_circle_node(ASTNode *x, ASTNode *y, ASTNode *radius);
 ASTNode* create_rect_node(ASTNode *x, ASTNode *y, ASTNode *width, ASTNode *height);
 ASTNode* create_color_node(char *color);
 ASTNode* create_loop_node(int iterations, ASTNode *body);
 ASTNode* create_program_node(ASTNode **stmts, int count);
-
-// Expression Nodes
 ASTNode* create_expr_ident_node(char *ident);
 ASTNode* create_expr_num_node(double num);
 ASTNode* create_expr_binop_node(char op, ASTNode *left, ASTNode *right);
+ASTNode* create_if_node(ASTNode *cond, ASTNode *if_body);
+ASTNode* create_if_else_node(ASTNode *cond, ASTNode *if_body, ASTNode *else_body);
 
-// Execution Functions
+/* Execution */
 double eval_expr(ASTNode *node, SymbolTable *symbol_table);
 void execute_node(ASTNode *node, SymbolTable *symbol_table);
 void free_node(ASTNode *node);

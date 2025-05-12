@@ -85,7 +85,8 @@ extern int yydebug;
     ASSIGN = 286,                  /* ASSIGN  */
     ADD_ASSIGN = 287,              /* ADD_ASSIGN  */
     SUB_ASSIGN = 288,              /* SUB_ASSIGN  */
-    UMINUS = 289                   /* UMINUS  */
+    SENAO = 289,                   /* SENAO  */
+    UMINUS = 290                   /* UMINUS  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -94,13 +95,13 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 207 "parser.y"
+#line 248 "parser.y"
 
     double num;
     char *str;
     ASTNode *ast;
 
-#line 104 "parser.tab.h"
+#line 105 "parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

@@ -86,6 +86,22 @@ ASTNode* create_expr_binop_node(char op, ASTNode *left, ASTNode *right) {
     node->data.expr_binop.right = right;
     return node;
 }
+ASTNode* create_if_node(ASTNode *cond, ASTNode *if_body) {
+    ASTNode *node = malloc(sizeof(ASTNode));
+    node->type = NODE_IF;
+    node->data.if_stmt.cond = cond;
+    node->data.if_stmt.if_body = if_body;
+    return node;
+}
+
+ASTNode* create_if_else_node(ASTNode *cond, ASTNode *if_body, ASTNode *else_body) {
+    ASTNode *node = malloc(sizeof(ASTNode));
+    node->type = NODE_IF_ELSE;
+    node->data.if_else_stmt.cond = cond;
+    node->data.if_else_stmt.if_body = if_body;
+    node->data.if_else_stmt.else_body = else_body;
+    return node;
+}
 
 double eval_expr(ASTNode *node, SymbolTable *symbol_table) {
     if (!node) return 0.0;
@@ -101,9 +117,15 @@ double eval_expr(ASTNode *node, SymbolTable *symbol_table) {
                 case '+': return left + right;
                 case '-': return left - right;
                 case '*': return left * right;
-                case '/': 
+                case '/':
                     if (right == 0) yyerror("Division by zero");
                     return left / right;
+                case '=': return left == right;
+                case '!': return left != right;
+                case '<': return left < right;
+                case '>': return left > right;
+                case 'l': return left <= right;
+                case 'g': return left >= right;
                 default: return 0.0;
             }
         }
@@ -134,10 +156,21 @@ void execute_node(ASTNode *node, SymbolTable *symbol_table) {
             double y = eval_expr(node->data.rect.y, symbol_table);
             double width = eval_expr(node->data.rect.width, symbol_table);
             double height = eval_expr(node->data.rect.height, symbol_table);
-            printf("DRAW RECT: x=%.2f y=%.2f width=%.2f height=%.2f\n",
-                   x, y, width, height);
+            printf("DRAW RECT: x=%.2f y=%.2f width=%.2f height=%.2f\n", x, y, width, height);
             break;
         }
+        case NODE_IF:
+            if (eval_expr(node->data.if_stmt.cond, symbol_table)) {
+                execute_node(node->data.if_stmt.if_body, symbol_table);
+            }
+            break;
+        case NODE_IF_ELSE:
+            if (eval_expr(node->data.if_else_stmt.cond, symbol_table)) {
+                execute_node(node->data.if_else_stmt.if_body, symbol_table);
+            } else {
+                execute_node(node->data.if_else_stmt.else_body, symbol_table);
+            }
+            break;
         case NODE_COLOR:
             printf("SET COLOR: %s\n", node->data.color.color);
             break;
@@ -161,7 +194,6 @@ void execute_node(ASTNode *node, SymbolTable *symbol_table) {
 
 void free_node(ASTNode *node) {
     if (!node) return;
-    
     switch (node->type) {
         case NODE_ASSIGN:
             free(node->data.assign.id);
@@ -183,6 +215,15 @@ void free_node(ASTNode *node) {
             break;
         case NODE_LOOP:
             free_node(node->data.loop.body);
+            break;
+        case NODE_IF:
+            free_node(node->data.if_stmt.cond);
+            free_node(node->data.if_stmt.if_body);
+            break;
+        case NODE_IF_ELSE:
+            free_node(node->data.if_else_stmt.cond);
+            free_node(node->data.if_else_stmt.if_body);
+            free_node(node->data.if_else_stmt.else_body);
             break;
         case NODE_PROGRAM:
             for (int i = 0; i < node->data.program.count; i++) {
@@ -217,24 +258,22 @@ void free_node(ASTNode *node) {
 %token X Y RAIO LARGURA ALTURA X1 Y1 X2 Y2 COR_ATUAL
 %token ASSIGN ADD_ASSIGN SUB_ASSIGN
 %token '(' ')' '{' '}' ';'
+%token SENAO
 
-%type <num> expr_value
-%type <ast> program stmt shape_stmt color_stmt loop assignment expr
-
+%left EQ NE LT LE GT GE
 %left '+' '-'
 %left '*' '/'
 %nonassoc UMINUS
 
+%type <ast> program stmt shape_stmt color_stmt loop assignment expr if_stmt
+%type <num> expr_value
+
 %%
 
 program:
-    /* empty */ { 
-        $$ = create_program_node(NULL, 0); 
-        root = $$;
-    }
-    | program stmt { 
-        ASTNode **new_stmts = realloc($1->data.program.stmts, 
-                                    ($1->data.program.count + 1) * sizeof(ASTNode*));
+    /* empty */ { $$ = create_program_node(NULL, 0); root = $$; }
+    | program stmt {
+        ASTNode **new_stmts = realloc($1->data.program.stmts, ($1->data.program.count + 1) * sizeof(ASTNode*));
         new_stmts[$1->data.program.count] = $2;
         $$ = create_program_node(new_stmts, $1->data.program.count + 1);
         root = $$;
@@ -246,15 +285,25 @@ stmt:
     | color_stmt ';' { $$ = $1; }
     | assignment ';' { $$ = $1; }
     | loop { $$ = $1; }
+    | if_stmt
     ;
 
 assignment:
     IDENTIFIER ASSIGN expr { $$ = create_assign_node($1, $3); }
-    | IDENTIFIER ADD_ASSIGN expr { 
+    | IDENTIFIER ADD_ASSIGN expr {
         ASTNode *ident = create_expr_ident_node($1);
         ASTNode *add = create_expr_binop_node('+', ident, $3);
         $$ = create_assign_node($1, add);
         free($1);
+    }
+    ;
+
+if_stmt:
+    SE '(' expr ')' '{' program '}' SENAO '{' program '}' {
+        $$ = create_if_else_node($3, $6, $10);
+    }
+    | SE '(' expr ')' '{' program '}' {
+        $$ = create_if_node($3, $6);
     }
     ;
 
@@ -268,8 +317,8 @@ color_stmt:
     ;
 
 loop:
-    REPETIR expr_value VEZES '{' program '}' { 
-        $$ = create_loop_node((int)$2, $5); 
+    REPETIR expr_value VEZES '{' program '}' {
+        $$ = create_loop_node((int)$2, $5);
     }
     ;
 
@@ -280,6 +329,12 @@ expr:
     | expr '-' expr { $$ = create_expr_binop_node('-', $1, $3); }
     | expr '*' expr { $$ = create_expr_binop_node('*', $1, $3); }
     | expr '/' expr { $$ = create_expr_binop_node('/', $1, $3); }
+    | expr EQ expr { $$ = create_expr_binop_node('=', $1, $3); }
+    | expr NE expr { $$ = create_expr_binop_node('!', $1, $3); }
+    | expr LT expr { $$ = create_expr_binop_node('<', $1, $3); }
+    | expr LE expr { $$ = create_expr_binop_node('l', $1, $3); }
+    | expr GT expr { $$ = create_expr_binop_node('>', $1, $3); }
+    | expr GE expr { $$ = create_expr_binop_node('g', $1, $3); }
     | '(' expr ')' { $$ = $2; }
     ;
 

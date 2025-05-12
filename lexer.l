@@ -15,13 +15,14 @@ newline     \n
 
 %%
 
+"se"              { return SE; }
+"senao"           { return SENAO; }
 "circulo"         { return CIRCULO; }
 "retangulo"       { return RETANGULO; }
 "linha"           { return LINHA; }
 "cor"             { return COR; }
 "grupo"           { return GRUPO; }
 "mover"           { return MOVER; }
-"se"              { return SE; }
 "repetir"         { return REPETIR; }
 "vezes"           { return VEZES; }
 "x"               { return X; }
@@ -56,8 +57,8 @@ newline     \n
                     yylval.str = strdup(s+1); 
                     return STRING; 
                   }
-{whitespace}      { /* Ignore whitespace */ }
-{newline}         { /* Return newline as statement separator */ }
+{whitespace}      { /* ignore */ }
+{newline}         { /* ignore */ }
 .                 { yyerror("Invalid character"); }
 
 %%
