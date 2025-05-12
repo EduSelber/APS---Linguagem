@@ -7,51 +7,59 @@ Selber_Sketches é uma linguagem de programação focada na criação de element
 A linguagem definida abaixo permite a criação de formas geométricas, grupos, estruturas condicionais e repetições, além do uso de variáveis com atribuições e expressões. A gramática está descrita na notação EBNF (Extended Backus-Naur Form), que facilita a visualização da estrutura e regras da linguagem.
 
 ```ebnf
-program      = { statement } ;
+program         = { statement } ;
 
-statement    = shape | color | group | conditional | loop | assignment ;
+statement       = (shape ";" 
+                 | color ";" 
+                 | assignment ";" 
+                 | conditional 
+                 | loop 
+                 | group ) ;
 
-shape        = circle | rect | line ;
+shape           = circle | rect | line ;
 
-circle       = "circulo" "x" expr "y" expr "raio" expr ;
+circle          = "circulo" "x" expr "y" expr "raio" expr ;
 
-rect         = "retangulo" "x" expr "y" expr "largura" expr "altura" expr ;
+rect            = "retangulo" "x" expr "y" expr "largura" expr "altura" expr ;
 
-line         = "linha" "x1" expr "y1" expr "x2" expr "y2" expr ;
+line            = "linha" "x1" expr "y1" expr "x2" expr "y2" expr ;
 
-color        = "cor" expr ;
+color           = "cor" string ;   (* restringido a strings literais *)
 
-group        = "grupo" "{" { statement } "}" [ transform ] ;
+group           = "grupo" "{" { statement } "}" [ transform ] ;
 
-transform    = "mover" "x" expr "y" expr ;
+transform       = "mover" "x" expr "y" expr ;
 
-conditional  = "se" condition "{" { statement } "}" ;
+conditional     = "se" "(" condition ")" "{" { statement } "}" [ "senao" "{" { statement } "}" ] ;
 
-loop         = "repetir" expr "vezes" "{" { statement } "}" ;
+loop            = "repetir" expr "vezes" "{" { statement } "}" ;
 
-assignment   = identifier assign_op expr ;
+assignment      = identifier assign_op expr ;
 
-assign_op    = "=" | "+=" | "-=" ;
+assign_op       = "=" | "+=" | "-=" ;
 
-condition    = ( "x" | "y" | "cor_atual" | identifier ) comparator expr ;
+condition       = ( "x" | "y" | "cor_atual" | identifier ) comparator expr ;
 
-expr         = term { ("+" | "-") term } ;
+comparator      = "==" | ">" | "<" | ">=" | "<=" | "!=" ;
 
-term         = factor { ("*" | "/") factor } ;
+expr            = term { ("+" | "-") term } ;
 
-factor       = number | string | identifier | "(" expr ")" ;
+term            = factor { ("*" | "/") factor } ;
 
-comparator   = "==" | ">" | "<" | ">=" | "<=" | "!=" ;
+factor          = number | identifier | "(" expr ")" ;
 
-string       = '"' { letter | digit } '"' ;
+string          = '"' colorname '"' ;
 
-identifier   = letter { letter | digit | "_" } ;
+colorname       = "azul" | "vermelho" | "verde" | "amarelo" | "preto" | "branco" | "roxo" | "laranja" | "cinza" ;
 
-number       = digit { digit } [ "." digit { digit } ] ;
+identifier      = letter { letter | digit | "_" } ;
 
-digit        = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+number          = digit { digit } [ "." digit { digit } ] ;
 
-letter       = "a" | "b" | "c" | ... | "z" | "A" | "B" | ... | "Z" ;
+digit           = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+
+letter          = "a" | "b" | "c" | ... | "z" | "A" | "B" | ... | "Z" ;
+
 ```
 ## Como compilar
 ```
