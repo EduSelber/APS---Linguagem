@@ -142,18 +142,26 @@ END LOOP
 ## Exemplo de código
 
 ```plaintext
-cor "azul"
+cor "azul";
 
-posicao = 10
+posicao = 50;
 
-circulo x posicao y 50 raio (posicao + 5)
+circulo x posicao y 150 raio 30;
 
-posicao += 20
-
-se posicao > 15 {
-    retangulo x 0 y 0 largura posicao altura 30
+se (posicao == 40){
+    posicao +=100;
+    circulo x posicao y 150 raio 30;   
+} senao{
+    posicao +=10;
+}
+linha x 10 y 20 x 30 y 40;
+se (posicao > 10){
+    posicao +=10;
 }
 
-repetir 5 vezes {
-    linha x1 0 y1 0 x2 posicao y2 100
+retangulo x (posicao + 50) y 200 largura 100 altura 50;
+
+repetir 3 vezes {
+    retangulo x (posicao + 50) y 200 largura 100 altura 50;
+    posicao += 20;
 }
