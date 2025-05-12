@@ -24,7 +24,7 @@ rect            = "retangulo" "x" expr "y" expr "largura" expr "altura" expr ;
 
 line            = "linha" "x1" expr "y1" expr "x2" expr "y2" expr ;
 
-color           = "cor" string ;   (* restringido a strings literais *)
+color           = "cor" string ;   
 
 group           = "grupo" "{" { statement } "}" [ transform ] ;
 
