@@ -1,20 +1,13 @@
-cor "azul"
+cor "azul";
 
-posicao = 10
+posicao = 50;
 
-circulo x posicao y 50 raio (posicao + 5)
+circulo x posicao y 150 raio 30;
 
-posicao += 20
+posicao +=100;
+retangulo x (posicao + 50) y 200 largura 100 altura 50;
 
-se posicao > 15 {
-    retangulo x 0 y 0 largura posicao altura 30
-}
-
-cor "vermelho"
-
-deslocamento = 0
-
-repetir 5 vezes {
-    linha x1 deslocamento y1 200 x2 (deslocamento + 30) y2 250
-    deslocamento += 40
+repetir 10 vezes {
+    retangulo x (posicao + 50) y 200 largura 100 altura 50;
+    posicao += 20;
 }
