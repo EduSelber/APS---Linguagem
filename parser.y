@@ -1,5 +1,6 @@
 %{
 #include "symbol_table.h"
+#include "ast.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,42 +11,18 @@ void yyerror(const char *s);
 extern FILE *yyin;
 extern SymbolTable *symbol_table;
 
-/* AST Node Definitions */
-typedef struct ASTNode ASTNode;
-
-typedef enum {
-    NODE_ASSIGN,
-    NODE_CIRCLE,
-    NODE_RECT,
-    NODE_COLOR,
-    NODE_LOOP,
-    NODE_PROGRAM
-} NodeType;
-
-struct ASTNode {
-    NodeType type;
-    union {
-        struct { char *id; double value; } assign;
-        struct { double x, y, radius; } circle;
-        struct { double x, y, width, height; } rect;
-        struct { char *color; } color;
-        struct { int iterations; ASTNode *body; } loop;
-        struct { ASTNode **stmts; int count; } program;
-    } data;
-};
-
 ASTNode *root = NULL;
 
 /* AST Node Creation Functions */
-ASTNode* create_assign_node(char *id, double value) {
+ASTNode* create_assign_node(char *id, ASTNode *expr) {
     ASTNode *node = malloc(sizeof(ASTNode));
     node->type = NODE_ASSIGN;
     node->data.assign.id = strdup(id);
-    node->data.assign.value = value;
+    node->data.assign.expr = expr;
     return node;
 }
 
-ASTNode* create_circle_node(double x, double y, double radius) {
+ASTNode* create_circle_node(ASTNode *x, ASTNode *y, ASTNode *radius) {
     ASTNode *node = malloc(sizeof(ASTNode));
     node->type = NODE_CIRCLE;
     node->data.circle.x = x;
@@ -54,7 +31,7 @@ ASTNode* create_circle_node(double x, double y, double radius) {
     return node;
 }
 
-ASTNode* create_rect_node(double x, double y, double width, double height) {
+ASTNode* create_rect_node(ASTNode *x, ASTNode *y, ASTNode *width, ASTNode *height) {
     ASTNode *node = malloc(sizeof(ASTNode));
     node->type = NODE_RECT;
     node->data.rect.x = x;
@@ -87,24 +64,80 @@ ASTNode* create_program_node(ASTNode **stmts, int count) {
     return node;
 }
 
-/* AST Execution Functions */
-void execute_node(ASTNode *node) {
+ASTNode* create_expr_ident_node(char *ident) {
+    ASTNode *node = malloc(sizeof(ASTNode));
+    node->type = NODE_EXPR_IDENT;
+    node->data.expr_ident.ident = strdup(ident);
+    return node;
+}
+
+ASTNode* create_expr_num_node(double num) {
+    ASTNode *node = malloc(sizeof(ASTNode));
+    node->type = NODE_EXPR_NUM;
+    node->data.expr_num.num = num;
+    return node;
+}
+
+ASTNode* create_expr_binop_node(char op, ASTNode *left, ASTNode *right) {
+    ASTNode *node = malloc(sizeof(ASTNode));
+    node->type = NODE_EXPR_BINOP;
+    node->data.expr_binop.op = op;
+    node->data.expr_binop.left = left;
+    node->data.expr_binop.right = right;
+    return node;
+}
+
+double eval_expr(ASTNode *node, SymbolTable *symbol_table) {
+    if (!node) return 0.0;
+    switch (node->type) {
+        case NODE_EXPR_NUM:
+            return node->data.expr_num.num;
+        case NODE_EXPR_IDENT:
+            return symbol_table_get(symbol_table, node->data.expr_ident.ident);
+        case NODE_EXPR_BINOP: {
+            double left = eval_expr(node->data.expr_binop.left, symbol_table);
+            double right = eval_expr(node->data.expr_binop.right, symbol_table);
+            switch (node->data.expr_binop.op) {
+                case '+': return left + right;
+                case '-': return left - right;
+                case '*': return left * right;
+                case '/': 
+                    if (right == 0) yyerror("Division by zero");
+                    return left / right;
+                default: return 0.0;
+            }
+        }
+        default:
+            return 0.0;
+    }
+}
+
+void execute_node(ASTNode *node, SymbolTable *symbol_table) {
     if (!node) return;
     
     switch (node->type) {
-        case NODE_ASSIGN:
-            printf("ASSIGN: %s = %.2f\n", node->data.assign.id, node->data.assign.value);
-            symbol_table_set(symbol_table, node->data.assign.id, node->data.assign.value);
+        case NODE_ASSIGN: {
+            double value = eval_expr(node->data.assign.expr, symbol_table);
+            printf("ASSIGN: %s = %.2f\n", node->data.assign.id, value);
+            symbol_table_set(symbol_table, node->data.assign.id, value);
             break;
-        case NODE_CIRCLE:
-            printf("DRAW CIRCLE: x=%.2f y=%.2f radius=%.2f\n", 
-                   node->data.circle.x, node->data.circle.y, node->data.circle.radius);
+        }
+        case NODE_CIRCLE: {
+            double x = eval_expr(node->data.circle.x, symbol_table);
+            double y = eval_expr(node->data.circle.y, symbol_table);
+            double radius = eval_expr(node->data.circle.radius, symbol_table);
+            printf("DRAW CIRCLE: x=%.2f y=%.2f radius=%.2f\n", x, y, radius);
             break;
-        case NODE_RECT:
+        }
+        case NODE_RECT: {
+            double x = eval_expr(node->data.rect.x, symbol_table);
+            double y = eval_expr(node->data.rect.y, symbol_table);
+            double width = eval_expr(node->data.rect.width, symbol_table);
+            double height = eval_expr(node->data.rect.height, symbol_table);
             printf("DRAW RECT: x=%.2f y=%.2f width=%.2f height=%.2f\n",
-                   node->data.rect.x, node->data.rect.y, 
-                   node->data.rect.width, node->data.rect.height);
+                   x, y, width, height);
             break;
+        }
         case NODE_COLOR:
             printf("SET COLOR: %s\n", node->data.color.color);
             break;
@@ -112,14 +145,16 @@ void execute_node(ASTNode *node) {
             printf("START LOOP: %d iterations\n", node->data.loop.iterations);
             for (int i = 0; i < node->data.loop.iterations; i++) {
                 printf("LOOP ITERATION %d:\n", i+1);
-                execute_node(node->data.loop.body);
+                execute_node(node->data.loop.body, symbol_table);
             }
             printf("END LOOP\n");
             break;
         case NODE_PROGRAM:
             for (int i = 0; i < node->data.program.count; i++) {
-                execute_node(node->data.program.stmts[i]);
+                execute_node(node->data.program.stmts[i], symbol_table);
             }
+            break;
+        default:
             break;
     }
 }
@@ -130,6 +165,18 @@ void free_node(ASTNode *node) {
     switch (node->type) {
         case NODE_ASSIGN:
             free(node->data.assign.id);
+            free_node(node->data.assign.expr);
+            break;
+        case NODE_CIRCLE:
+            free_node(node->data.circle.x);
+            free_node(node->data.circle.y);
+            free_node(node->data.circle.radius);
+            break;
+        case NODE_RECT:
+            free_node(node->data.rect.x);
+            free_node(node->data.rect.y);
+            free_node(node->data.rect.width);
+            free_node(node->data.rect.height);
             break;
         case NODE_COLOR:
             free(node->data.color.color);
@@ -142,6 +189,15 @@ void free_node(ASTNode *node) {
                 free_node(node->data.program.stmts[i]);
             }
             free(node->data.program.stmts);
+            break;
+        case NODE_EXPR_IDENT:
+            free(node->data.expr_ident.ident);
+            break;
+        case NODE_EXPR_BINOP:
+            free_node(node->data.expr_binop.left);
+            free_node(node->data.expr_binop.right);
+            break;
+        default:
             break;
     }
     free(node);
@@ -162,8 +218,8 @@ void free_node(ASTNode *node) {
 %token ASSIGN ADD_ASSIGN SUB_ASSIGN
 %token '(' ')' '{' '}' ';'
 
-%type <num> expr
-%type <ast> program stmt shape_stmt color_stmt loop assignment
+%type <num> expr_value
+%type <ast> program stmt shape_stmt color_stmt loop assignment expr
 
 %left '+' '-'
 %left '*' '/'
@@ -174,14 +230,14 @@ void free_node(ASTNode *node) {
 program:
     /* empty */ { 
         $$ = create_program_node(NULL, 0); 
-        root = $$;  // Assign the initial empty program to root
+        root = $$;
     }
     | program stmt { 
         ASTNode **new_stmts = realloc($1->data.program.stmts, 
                                     ($1->data.program.count + 1) * sizeof(ASTNode*));
         new_stmts[$1->data.program.count] = $2;
         $$ = create_program_node(new_stmts, $1->data.program.count + 1);
-        root = $$;  // Update root to the latest program node
+        root = $$;
     }
     ;
 
@@ -193,10 +249,11 @@ stmt:
     ;
 
 assignment:
-    IDENTIFIER ASSIGN expr { $$ = create_assign_node($1, $3); free($1); }
+    IDENTIFIER ASSIGN expr { $$ = create_assign_node($1, $3); }
     | IDENTIFIER ADD_ASSIGN expr { 
-        double val = symbol_table_get(symbol_table, $1) + $3;
-        $$ = create_assign_node($1, val); 
+        ASTNode *ident = create_expr_ident_node($1);
+        ASTNode *add = create_expr_binop_node('+', ident, $3);
+        $$ = create_assign_node($1, add);
         free($1);
     }
     ;
@@ -211,22 +268,23 @@ color_stmt:
     ;
 
 loop:
-    REPETIR expr VEZES '{' program '}' { 
+    REPETIR expr_value VEZES '{' program '}' { 
         $$ = create_loop_node((int)$2, $5); 
     }
     ;
 
 expr:
-    NUMBER { $$ = $1; }
-    | IDENTIFIER { $$ = symbol_table_get(symbol_table, $1); free($1); }
-    | expr '+' expr { $$ = $1 + $3; }
-    | expr '-' expr { $$ = $1 - $3; }
-    | expr '*' expr { $$ = $1 * $3; }
-    | expr '/' expr { 
-        if ($3 == 0) yyerror("Division by zero");
-        $$ = $1 / $3; 
-    }
+    NUMBER { $$ = create_expr_num_node($1); }
+    | IDENTIFIER { $$ = create_expr_ident_node($1); free($1); }
+    | expr '+' expr { $$ = create_expr_binop_node('+', $1, $3); }
+    | expr '-' expr { $$ = create_expr_binop_node('-', $1, $3); }
+    | expr '*' expr { $$ = create_expr_binop_node('*', $1, $3); }
+    | expr '/' expr { $$ = create_expr_binop_node('/', $1, $3); }
     | '(' expr ')' { $$ = $2; }
+    ;
+
+expr_value:
+    expr { $$ = eval_expr($1, symbol_table); free_node($1); }
     ;
 
 %%
@@ -246,7 +304,7 @@ int main(int argc, char *argv[]) {
     symbol_table_init(&symbol_table);
     
     if (yyparse() == 0) {
-        execute_node(root);  // root is now set by the parser
+        execute_node(root, symbol_table);
     }
     
     free_node(root);

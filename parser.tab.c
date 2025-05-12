@@ -70,6 +70,7 @@
 #line 1 "parser.y"
 
 #include "symbol_table.h"
+#include "ast.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,42 +81,18 @@ void yyerror(const char *s);
 extern FILE *yyin;
 extern SymbolTable *symbol_table;
 
-/* AST Node Definitions */
-typedef struct ASTNode ASTNode;
-
-typedef enum {
-    NODE_ASSIGN,
-    NODE_CIRCLE,
-    NODE_RECT,
-    NODE_COLOR,
-    NODE_LOOP,
-    NODE_PROGRAM
-} NodeType;
-
-struct ASTNode {
-    NodeType type;
-    union {
-        struct { char *id; double value; } assign;
-        struct { double x, y, radius; } circle;
-        struct { double x, y, width, height; } rect;
-        struct { char *color; } color;
-        struct { int iterations; ASTNode *body; } loop;
-        struct { ASTNode **stmts; int count; } program;
-    } data;
-};
-
 ASTNode *root = NULL;
 
 /* AST Node Creation Functions */
-ASTNode* create_assign_node(char *id, double value) {
+ASTNode* create_assign_node(char *id, ASTNode *expr) {
     ASTNode *node = malloc(sizeof(ASTNode));
     node->type = NODE_ASSIGN;
     node->data.assign.id = strdup(id);
-    node->data.assign.value = value;
+    node->data.assign.expr = expr;
     return node;
 }
 
-ASTNode* create_circle_node(double x, double y, double radius) {
+ASTNode* create_circle_node(ASTNode *x, ASTNode *y, ASTNode *radius) {
     ASTNode *node = malloc(sizeof(ASTNode));
     node->type = NODE_CIRCLE;
     node->data.circle.x = x;
@@ -124,7 +101,7 @@ ASTNode* create_circle_node(double x, double y, double radius) {
     return node;
 }
 
-ASTNode* create_rect_node(double x, double y, double width, double height) {
+ASTNode* create_rect_node(ASTNode *x, ASTNode *y, ASTNode *width, ASTNode *height) {
     ASTNode *node = malloc(sizeof(ASTNode));
     node->type = NODE_RECT;
     node->data.rect.x = x;
@@ -157,24 +134,80 @@ ASTNode* create_program_node(ASTNode **stmts, int count) {
     return node;
 }
 
-/* AST Execution Functions */
-void execute_node(ASTNode *node) {
+ASTNode* create_expr_ident_node(char *ident) {
+    ASTNode *node = malloc(sizeof(ASTNode));
+    node->type = NODE_EXPR_IDENT;
+    node->data.expr_ident.ident = strdup(ident);
+    return node;
+}
+
+ASTNode* create_expr_num_node(double num) {
+    ASTNode *node = malloc(sizeof(ASTNode));
+    node->type = NODE_EXPR_NUM;
+    node->data.expr_num.num = num;
+    return node;
+}
+
+ASTNode* create_expr_binop_node(char op, ASTNode *left, ASTNode *right) {
+    ASTNode *node = malloc(sizeof(ASTNode));
+    node->type = NODE_EXPR_BINOP;
+    node->data.expr_binop.op = op;
+    node->data.expr_binop.left = left;
+    node->data.expr_binop.right = right;
+    return node;
+}
+
+double eval_expr(ASTNode *node, SymbolTable *symbol_table) {
+    if (!node) return 0.0;
+    switch (node->type) {
+        case NODE_EXPR_NUM:
+            return node->data.expr_num.num;
+        case NODE_EXPR_IDENT:
+            return symbol_table_get(symbol_table, node->data.expr_ident.ident);
+        case NODE_EXPR_BINOP: {
+            double left = eval_expr(node->data.expr_binop.left, symbol_table);
+            double right = eval_expr(node->data.expr_binop.right, symbol_table);
+            switch (node->data.expr_binop.op) {
+                case '+': return left + right;
+                case '-': return left - right;
+                case '*': return left * right;
+                case '/': 
+                    if (right == 0) yyerror("Division by zero");
+                    return left / right;
+                default: return 0.0;
+            }
+        }
+        default:
+            return 0.0;
+    }
+}
+
+void execute_node(ASTNode *node, SymbolTable *symbol_table) {
     if (!node) return;
     
     switch (node->type) {
-        case NODE_ASSIGN:
-            printf("ASSIGN: %s = %.2f\n", node->data.assign.id, node->data.assign.value);
-            symbol_table_set(symbol_table, node->data.assign.id, node->data.assign.value);
+        case NODE_ASSIGN: {
+            double value = eval_expr(node->data.assign.expr, symbol_table);
+            printf("ASSIGN: %s = %.2f\n", node->data.assign.id, value);
+            symbol_table_set(symbol_table, node->data.assign.id, value);
             break;
-        case NODE_CIRCLE:
-            printf("DRAW CIRCLE: x=%.2f y=%.2f radius=%.2f\n", 
-                   node->data.circle.x, node->data.circle.y, node->data.circle.radius);
+        }
+        case NODE_CIRCLE: {
+            double x = eval_expr(node->data.circle.x, symbol_table);
+            double y = eval_expr(node->data.circle.y, symbol_table);
+            double radius = eval_expr(node->data.circle.radius, symbol_table);
+            printf("DRAW CIRCLE: x=%.2f y=%.2f radius=%.2f\n", x, y, radius);
             break;
-        case NODE_RECT:
+        }
+        case NODE_RECT: {
+            double x = eval_expr(node->data.rect.x, symbol_table);
+            double y = eval_expr(node->data.rect.y, symbol_table);
+            double width = eval_expr(node->data.rect.width, symbol_table);
+            double height = eval_expr(node->data.rect.height, symbol_table);
             printf("DRAW RECT: x=%.2f y=%.2f width=%.2f height=%.2f\n",
-                   node->data.rect.x, node->data.rect.y, 
-                   node->data.rect.width, node->data.rect.height);
+                   x, y, width, height);
             break;
+        }
         case NODE_COLOR:
             printf("SET COLOR: %s\n", node->data.color.color);
             break;
@@ -182,14 +215,16 @@ void execute_node(ASTNode *node) {
             printf("START LOOP: %d iterations\n", node->data.loop.iterations);
             for (int i = 0; i < node->data.loop.iterations; i++) {
                 printf("LOOP ITERATION %d:\n", i+1);
-                execute_node(node->data.loop.body);
+                execute_node(node->data.loop.body, symbol_table);
             }
             printf("END LOOP\n");
             break;
         case NODE_PROGRAM:
             for (int i = 0; i < node->data.program.count; i++) {
-                execute_node(node->data.program.stmts[i]);
+                execute_node(node->data.program.stmts[i], symbol_table);
             }
+            break;
+        default:
             break;
     }
 }
@@ -200,6 +235,18 @@ void free_node(ASTNode *node) {
     switch (node->type) {
         case NODE_ASSIGN:
             free(node->data.assign.id);
+            free_node(node->data.assign.expr);
+            break;
+        case NODE_CIRCLE:
+            free_node(node->data.circle.x);
+            free_node(node->data.circle.y);
+            free_node(node->data.circle.radius);
+            break;
+        case NODE_RECT:
+            free_node(node->data.rect.x);
+            free_node(node->data.rect.y);
+            free_node(node->data.rect.width);
+            free_node(node->data.rect.height);
             break;
         case NODE_COLOR:
             free(node->data.color.color);
@@ -213,11 +260,20 @@ void free_node(ASTNode *node) {
             }
             free(node->data.program.stmts);
             break;
+        case NODE_EXPR_IDENT:
+            free(node->data.expr_ident.ident);
+            break;
+        case NODE_EXPR_BINOP:
+            free_node(node->data.expr_binop.left);
+            free_node(node->data.expr_binop.right);
+            break;
+        default:
+            break;
     }
     free(node);
 }
 
-#line 221 "parser.tab.c"
+#line 277 "parser.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -296,7 +352,8 @@ enum yysymbol_kind_t
   YYSYMBOL_shape_stmt = 48,                /* shape_stmt  */
   YYSYMBOL_color_stmt = 49,                /* color_stmt  */
   YYSYMBOL_loop = 50,                      /* loop  */
-  YYSYMBOL_expr = 51                       /* expr  */
+  YYSYMBOL_expr = 51,                      /* expr  */
+  YYSYMBOL_expr_value = 52                 /* expr_value  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
@@ -624,16 +681,16 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  2
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   88
+#define YYLAST   91
 
 /* YYNTOKENS -- Number of terminals.  */
 #define YYNTOKENS  44
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  8
+#define YYNNTS  9
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  20
+#define YYNRULES  21
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  53
+#define YYNSTATES  54
 
 /* YYMAXUTOK -- Last valid token kind.  */
 #define YYMAXUTOK   289
@@ -683,11 +740,11 @@ static const yytype_int8 yytranslate[] =
 
 #if YYDEBUG
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
-static const yytype_uint8 yyrline[] =
+static const yytype_int16 yyrline[] =
 {
-       0,   175,   175,   179,   189,   190,   191,   192,   196,   197,
-     205,   206,   210,   214,   220,   221,   222,   223,   224,   225,
-     229
+       0,   231,   231,   235,   245,   246,   247,   248,   252,   253,
+     262,   263,   267,   271,   277,   278,   279,   280,   281,   282,
+     283,   287
 };
 #endif
 
@@ -709,7 +766,7 @@ static const char *const yytname[] =
   "RAIO", "LARGURA", "ALTURA", "X1", "Y1", "X2", "Y2", "COR_ATUAL",
   "ASSIGN", "ADD_ASSIGN", "SUB_ASSIGN", "'('", "')'", "'{'", "'}'", "';'",
   "'+'", "'-'", "'*'", "'/'", "UMINUS", "$accept", "program", "stmt",
-  "assignment", "shape_stmt", "color_stmt", "loop", "expr", YY_NULLPTR
+  "assignment", "shape_stmt", "color_stmt", "loop", "expr", "expr_value", YY_NULLPTR
 };
 
 static const char *
@@ -719,7 +776,7 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 }
 #endif
 
-#define YYPACT_NINF (-34)
+#define YYPACT_NINF (-26)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
@@ -733,12 +790,12 @@ yysymbol_name (yysymbol_kind_t yysymbol)
    STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-     -34,    51,   -34,   -27,   -15,    -9,    17,     2,   -34,   -12,
-      -6,    14,   -34,     2,     2,     2,     2,   -34,   -34,   -34,
-       2,     4,   -34,   -34,   -34,     0,     0,     8,    15,   -25,
-      23,     2,     2,     2,     2,     2,     2,   -34,   -34,   -33,
-     -33,   -34,   -34,    35,    41,    16,     2,     2,   -34,     0,
-      46,     2,     0
+     -26,    46,   -26,   -19,   -11,    -7,    12,    -5,   -26,   -12,
+     -10,    -6,   -26,    -5,    -5,    -5,    -5,   -26,   -26,   -26,
+      -5,    49,     7,   -26,   -26,   -26,    49,    49,     3,     8,
+      45,    -5,    -5,    -5,    -5,     0,    -5,    -5,   -26,   -25,
+     -25,   -26,   -26,   -26,    28,    32,    -4,    -5,    -5,   -26,
+      49,    37,    -5,    49
 };
 
 /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -748,22 +805,22 @@ static const yytype_int8 yydefact[] =
 {
        2,     0,     1,     0,     0,     0,     0,     0,     3,     0,
        0,     0,     7,     0,     0,     0,     0,    12,    15,    14,
-       0,     0,     6,     4,     5,     8,     9,     0,     0,     0,
-       0,     0,     0,     0,     0,     0,     0,    20,     2,    16,
-      17,    18,    19,     0,     0,     0,     0,     0,    13,    10,
-       0,     0,    11
+       0,    21,     0,     6,     4,     5,     8,     9,     0,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,    20,    16,
+      17,    18,    19,     2,     0,     0,     0,     0,     0,    13,
+      10,     0,     0,    11
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -34,    24,   -34,   -34,   -34,   -34,   -34,   -13
+     -26,    -3,   -26,   -26,   -26,   -26,   -26,   -13,   -26
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-       0,     1,     8,     9,    10,    11,    12,    21
+       0,     1,     8,     9,    10,    11,    12,    21,    22
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -771,28 +828,30 @@ static const yytype_int8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-      25,    26,    27,    28,    13,    14,    15,    29,    33,    34,
-      37,    18,    16,    19,    31,    32,    33,    34,    39,    40,
-      41,    42,    43,    44,    30,     3,    22,    17,     4,     5,
-      35,     6,    23,    49,    50,     7,    20,    36,    52,    31,
-      32,    33,    34,    31,    32,    33,    34,    31,    32,    33,
-      34,     2,    24,    48,    31,    32,    33,    34,    46,    38,
-       3,     0,    45,     4,     5,    47,     6,     0,     0,     0,
-       7,    51,     0,     0,    31,    32,    33,    34,     0,     0,
-      31,    32,    33,    34,     0,    31,    32,    33,    34
+      26,    27,    28,    29,    18,     3,    19,    30,     4,     5,
+      15,     6,    13,    14,    16,     7,    33,    34,    39,    40,
+      41,    42,    17,    44,    45,    36,    23,    35,    24,    20,
+      37,     0,    25,    49,    50,    51,    43,     0,     0,    53,
+      46,     0,    31,    32,    33,    34,     2,    31,    32,    33,
+      34,    47,     0,     0,     0,     3,    48,     0,     4,     5,
+       0,     6,    52,     0,     0,     7,     0,    31,    32,    33,
+      34,    31,    32,    33,    34,     0,    31,    32,    33,    34,
+      38,     0,     0,     0,    31,    32,    33,    34,    31,    32,
+      33,    34
 };
 
 static const yytype_int8 yycheck[] =
 {
-      13,    14,    15,    16,    31,    32,    21,    20,    41,    42,
-      35,     9,    21,    11,    39,    40,    41,    42,    31,    32,
-      33,    34,    35,    36,    20,     9,    38,    10,    12,    13,
-      22,    15,    38,    46,    47,    19,    34,    22,    51,    39,
-      40,    41,    42,    39,    40,    41,    42,    39,    40,    41,
-      42,     0,    38,    37,    39,    40,    41,    42,    23,    36,
-       9,    -1,    38,    12,    13,    24,    15,    -1,    -1,    -1,
-      19,    25,    -1,    -1,    39,    40,    41,    42,    -1,    -1,
-      39,    40,    41,    42,    -1,    39,    40,    41,    42
+      13,    14,    15,    16,     9,     9,    11,    20,    12,    13,
+      21,    15,    31,    32,    21,    19,    41,    42,    31,    32,
+      33,    34,    10,    36,    37,    22,    38,    20,    38,    34,
+      22,    -1,    38,    37,    47,    48,    36,    -1,    -1,    52,
+      43,    -1,    39,    40,    41,    42,     0,    39,    40,    41,
+      42,    23,    -1,    -1,    -1,     9,    24,    -1,    12,    13,
+      -1,    15,    25,    -1,    -1,    19,    -1,    39,    40,    41,
+      42,    39,    40,    41,    42,    -1,    39,    40,    41,    42,
+      35,    -1,    -1,    -1,    39,    40,    41,    42,    39,    40,
+      41,    42
 };
 
 /* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
@@ -801,10 +860,10 @@ static const yytype_int8 yystos[] =
 {
        0,    45,     0,     9,    12,    13,    15,    19,    46,    47,
       48,    49,    50,    31,    32,    21,    21,    10,     9,    11,
-      34,    51,    38,    38,    38,    51,    51,    51,    51,    51,
-      20,    39,    40,    41,    42,    22,    22,    35,    36,    51,
-      51,    51,    51,    51,    51,    45,    23,    24,    37,    51,
-      51,    25,    51
+      34,    51,    52,    38,    38,    38,    51,    51,    51,    51,
+      51,    39,    40,    41,    42,    20,    22,    22,    35,    51,
+      51,    51,    51,    36,    51,    51,    45,    23,    24,    37,
+      51,    51,    25,    51
 };
 
 /* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
@@ -812,7 +871,7 @@ static const yytype_int8 yyr1[] =
 {
        0,    44,    45,    45,    46,    46,    46,    46,    47,    47,
       48,    48,    49,    50,    51,    51,    51,    51,    51,    51,
-      51
+      51,    52
 };
 
 /* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
@@ -820,7 +879,7 @@ static const yytype_int8 yyr2[] =
 {
        0,     2,     0,     2,     2,     2,     2,     1,     3,     3,
        7,     9,     2,     6,     1,     1,     3,     3,     3,     3,
-       3
+       3,     1
 };
 
 
@@ -1284,139 +1343,143 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* program: %empty  */
-#line 175 "parser.y"
+#line 231 "parser.y"
                 { 
         (yyval.ast) = create_program_node(NULL, 0); 
-        root = (yyval.ast);  // Assign the initial empty program to root
+        root = (yyval.ast);
     }
-#line 1293 "parser.tab.c"
+#line 1352 "parser.tab.c"
     break;
 
   case 3: /* program: program stmt  */
-#line 179 "parser.y"
+#line 235 "parser.y"
                    { 
         ASTNode **new_stmts = realloc((yyvsp[-1].ast)->data.program.stmts, 
                                     ((yyvsp[-1].ast)->data.program.count + 1) * sizeof(ASTNode*));
         new_stmts[(yyvsp[-1].ast)->data.program.count] = (yyvsp[0].ast);
         (yyval.ast) = create_program_node(new_stmts, (yyvsp[-1].ast)->data.program.count + 1);
-        root = (yyval.ast);  // Update root to the latest program node
+        root = (yyval.ast);
     }
-#line 1305 "parser.tab.c"
+#line 1364 "parser.tab.c"
     break;
 
   case 4: /* stmt: shape_stmt ';'  */
-#line 189 "parser.y"
+#line 245 "parser.y"
                    { (yyval.ast) = (yyvsp[-1].ast); }
-#line 1311 "parser.tab.c"
+#line 1370 "parser.tab.c"
     break;
 
   case 5: /* stmt: color_stmt ';'  */
-#line 190 "parser.y"
+#line 246 "parser.y"
                      { (yyval.ast) = (yyvsp[-1].ast); }
-#line 1317 "parser.tab.c"
+#line 1376 "parser.tab.c"
     break;
 
   case 6: /* stmt: assignment ';'  */
-#line 191 "parser.y"
+#line 247 "parser.y"
                      { (yyval.ast) = (yyvsp[-1].ast); }
-#line 1323 "parser.tab.c"
+#line 1382 "parser.tab.c"
     break;
 
   case 7: /* stmt: loop  */
-#line 192 "parser.y"
+#line 248 "parser.y"
            { (yyval.ast) = (yyvsp[0].ast); }
-#line 1329 "parser.tab.c"
+#line 1388 "parser.tab.c"
     break;
 
   case 8: /* assignment: IDENTIFIER ASSIGN expr  */
-#line 196 "parser.y"
-                           { (yyval.ast) = create_assign_node((yyvsp[-2].str), (yyvsp[0].num)); free((yyvsp[-2].str)); }
-#line 1335 "parser.tab.c"
+#line 252 "parser.y"
+                           { (yyval.ast) = create_assign_node((yyvsp[-2].str), (yyvsp[0].ast)); }
+#line 1394 "parser.tab.c"
     break;
 
   case 9: /* assignment: IDENTIFIER ADD_ASSIGN expr  */
-#line 197 "parser.y"
+#line 253 "parser.y"
                                  { 
-        double val = symbol_table_get(symbol_table, (yyvsp[-2].str)) + (yyvsp[0].num);
-        (yyval.ast) = create_assign_node((yyvsp[-2].str), val); 
+        ASTNode *ident = create_expr_ident_node((yyvsp[-2].str));
+        ASTNode *add = create_expr_binop_node('+', ident, (yyvsp[0].ast));
+        (yyval.ast) = create_assign_node((yyvsp[-2].str), add);
         free((yyvsp[-2].str));
     }
-#line 1345 "parser.tab.c"
+#line 1405 "parser.tab.c"
     break;
 
   case 10: /* shape_stmt: CIRCULO X expr Y expr RAIO expr  */
-#line 205 "parser.y"
-                                    { (yyval.ast) = create_circle_node((yyvsp[-4].num), (yyvsp[-2].num), (yyvsp[0].num)); }
-#line 1351 "parser.tab.c"
+#line 262 "parser.y"
+                                    { (yyval.ast) = create_circle_node((yyvsp[-4].ast), (yyvsp[-2].ast), (yyvsp[0].ast)); }
+#line 1411 "parser.tab.c"
     break;
 
   case 11: /* shape_stmt: RETANGULO X expr Y expr LARGURA expr ALTURA expr  */
-#line 206 "parser.y"
-                                                       { (yyval.ast) = create_rect_node((yyvsp[-6].num), (yyvsp[-4].num), (yyvsp[-2].num), (yyvsp[0].num)); }
-#line 1357 "parser.tab.c"
+#line 263 "parser.y"
+                                                       { (yyval.ast) = create_rect_node((yyvsp[-6].ast), (yyvsp[-4].ast), (yyvsp[-2].ast), (yyvsp[0].ast)); }
+#line 1417 "parser.tab.c"
     break;
 
   case 12: /* color_stmt: COR STRING  */
-#line 210 "parser.y"
+#line 267 "parser.y"
                { (yyval.ast) = create_color_node((yyvsp[0].str)); free((yyvsp[0].str)); }
-#line 1363 "parser.tab.c"
+#line 1423 "parser.tab.c"
     break;
 
-  case 13: /* loop: REPETIR expr VEZES '{' program '}'  */
-#line 214 "parser.y"
-                                       { 
+  case 13: /* loop: REPETIR expr_value VEZES '{' program '}'  */
+#line 271 "parser.y"
+                                             { 
         (yyval.ast) = create_loop_node((int)(yyvsp[-4].num), (yyvsp[-1].ast)); 
     }
-#line 1371 "parser.tab.c"
+#line 1431 "parser.tab.c"
     break;
 
   case 14: /* expr: NUMBER  */
-#line 220 "parser.y"
-           { (yyval.num) = (yyvsp[0].num); }
-#line 1377 "parser.tab.c"
+#line 277 "parser.y"
+           { (yyval.ast) = create_expr_num_node((yyvsp[0].num)); }
+#line 1437 "parser.tab.c"
     break;
 
   case 15: /* expr: IDENTIFIER  */
-#line 221 "parser.y"
-                 { (yyval.num) = symbol_table_get(symbol_table, (yyvsp[0].str)); free((yyvsp[0].str)); }
-#line 1383 "parser.tab.c"
+#line 278 "parser.y"
+                 { (yyval.ast) = create_expr_ident_node((yyvsp[0].str)); free((yyvsp[0].str)); }
+#line 1443 "parser.tab.c"
     break;
 
   case 16: /* expr: expr '+' expr  */
-#line 222 "parser.y"
-                    { (yyval.num) = (yyvsp[-2].num) + (yyvsp[0].num); }
-#line 1389 "parser.tab.c"
+#line 279 "parser.y"
+                    { (yyval.ast) = create_expr_binop_node('+', (yyvsp[-2].ast), (yyvsp[0].ast)); }
+#line 1449 "parser.tab.c"
     break;
 
   case 17: /* expr: expr '-' expr  */
-#line 223 "parser.y"
-                    { (yyval.num) = (yyvsp[-2].num) - (yyvsp[0].num); }
-#line 1395 "parser.tab.c"
+#line 280 "parser.y"
+                    { (yyval.ast) = create_expr_binop_node('-', (yyvsp[-2].ast), (yyvsp[0].ast)); }
+#line 1455 "parser.tab.c"
     break;
 
   case 18: /* expr: expr '*' expr  */
-#line 224 "parser.y"
-                    { (yyval.num) = (yyvsp[-2].num) * (yyvsp[0].num); }
-#line 1401 "parser.tab.c"
+#line 281 "parser.y"
+                    { (yyval.ast) = create_expr_binop_node('*', (yyvsp[-2].ast), (yyvsp[0].ast)); }
+#line 1461 "parser.tab.c"
     break;
 
   case 19: /* expr: expr '/' expr  */
-#line 225 "parser.y"
-                    { 
-        if ((yyvsp[0].num) == 0) yyerror("Division by zero");
-        (yyval.num) = (yyvsp[-2].num) / (yyvsp[0].num); 
-    }
-#line 1410 "parser.tab.c"
+#line 282 "parser.y"
+                    { (yyval.ast) = create_expr_binop_node('/', (yyvsp[-2].ast), (yyvsp[0].ast)); }
+#line 1467 "parser.tab.c"
     break;
 
   case 20: /* expr: '(' expr ')'  */
-#line 229 "parser.y"
-                   { (yyval.num) = (yyvsp[-1].num); }
-#line 1416 "parser.tab.c"
+#line 283 "parser.y"
+                   { (yyval.ast) = (yyvsp[-1].ast); }
+#line 1473 "parser.tab.c"
+    break;
+
+  case 21: /* expr_value: expr  */
+#line 287 "parser.y"
+         { (yyval.num) = eval_expr((yyvsp[0].ast), symbol_table); free_node((yyvsp[0].ast)); }
+#line 1479 "parser.tab.c"
     break;
 
 
-#line 1420 "parser.tab.c"
+#line 1483 "parser.tab.c"
 
       default: break;
     }
@@ -1609,7 +1672,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 232 "parser.y"
+#line 290 "parser.y"
 
 
 int main(int argc, char *argv[]) {
@@ -1627,7 +1690,7 @@ int main(int argc, char *argv[]) {
     symbol_table_init(&symbol_table);
     
     if (yyparse() == 0) {
-        execute_node(root);  // root is now set by the parser
+        execute_node(root, symbol_table);
     }
     
     free_node(root);
