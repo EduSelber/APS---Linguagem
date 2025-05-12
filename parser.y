@@ -21,6 +21,15 @@ ASTNode* create_assign_node(char *id, ASTNode *expr) {
     node->data.assign.expr = expr;
     return node;
 }
+ASTNode* create_line_node(ASTNode *x1, ASTNode *y1, ASTNode *x2, ASTNode *y2) {
+    ASTNode *node = malloc(sizeof(ASTNode));
+    node->type = NODE_LINE;
+    node->data.line.x1 = x1;
+    node->data.line.y1 = y1;
+    node->data.line.x2 = x2;
+    node->data.line.y2 = y2;
+    return node;
+}
 
 ASTNode* create_circle_node(ASTNode *x, ASTNode *y, ASTNode *radius) {
     ASTNode *node = malloc(sizeof(ASTNode));
@@ -171,6 +180,14 @@ void execute_node(ASTNode *node, SymbolTable *symbol_table) {
                 execute_node(node->data.if_else_stmt.else_body, symbol_table);
             }
             break;
+        case NODE_LINE: {
+            double x1 = eval_expr(node->data.line.x1, symbol_table);
+            double y1 = eval_expr(node->data.line.y1, symbol_table);
+            double x2 = eval_expr(node->data.line.x2, symbol_table);
+            double y2 = eval_expr(node->data.line.y2, symbol_table);
+            printf("DRAW LINE: (%f,%f) to (%f,%f)\n", x1, y1, x2, y2);
+            break;
+        }
         case NODE_COLOR:
             printf("SET COLOR: %s\n", node->data.color.color);
             break;
@@ -237,6 +254,12 @@ void free_node(ASTNode *node) {
         case NODE_EXPR_BINOP:
             free_node(node->data.expr_binop.left);
             free_node(node->data.expr_binop.right);
+            break;
+        case NODE_LINE:
+            free_node(node->data.line.x1);
+            free_node(node->data.line.y1);
+            free_node(node->data.line.x2);
+            free_node(node->data.line.y2);
             break;
         default:
             break;
@@ -310,6 +333,7 @@ if_stmt:
 shape_stmt:
     CIRCULO X expr Y expr RAIO expr { $$ = create_circle_node($3, $5, $7); }
     | RETANGULO X expr Y expr LARGURA expr ALTURA expr { $$ = create_rect_node($3, $5, $7, $9); }
+    | LINHA X expr Y expr X expr Y expr { $$ = create_line_node($3, $5, $7, $9); }
     ;
 
 color_stmt:

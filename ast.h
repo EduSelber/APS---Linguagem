@@ -16,7 +16,8 @@ typedef enum {
     NODE_EXPR_NUM,
     NODE_EXPR_BINOP,
     NODE_IF,
-    NODE_IF_ELSE
+    NODE_IF_ELSE,
+    NODE_LINE
 } NodeType;
 
 struct ASTNode {
@@ -33,6 +34,7 @@ struct ASTNode {
         struct { char op; ASTNode *left; ASTNode *right; } expr_binop;
         struct { ASTNode *cond; ASTNode *if_body; } if_stmt;
         struct { ASTNode *cond; ASTNode *if_body; ASTNode *else_body; } if_else_stmt;
+        struct {ASTNode *x1, *y1, *x2, *y2;} line;
     } data;
 };
 

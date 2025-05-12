@@ -10,6 +10,7 @@ se (posicao == 40){
 } senao{
     posicao +=10;
 }
+linha x 10 y 20 x 30 y 40;
 se (posicao > 10){
     posicao +=10;
 }
