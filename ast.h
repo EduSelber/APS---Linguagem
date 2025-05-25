@@ -53,7 +53,7 @@ ASTNode* create_if_else_node(ASTNode *cond, ASTNode *if_body, ASTNode *else_body
 
 /* Execution */
 double eval_expr(ASTNode *node, SymbolTable *symbol_table);
-void execute_node(ASTNode *node, SymbolTable *symbol_table);
+void execute_node(ASTNode *node, SymbolTable *symbol_table, FILE *svg_file);
 void free_node(ASTNode *node);
 
 #endif

@@ -12,6 +12,23 @@ extern FILE *yyin;
 extern SymbolTable *symbol_table;
 
 ASTNode *root = NULL;
+static const char *current_color = "#000000"; 
+
+const char* color_name_to_hex(const char *name) {
+    if (strcmp(name, "azul") == 0) return "#0000FF";
+    else if (strcmp(name, "vermelho") == 0) return "#FF0000";
+    else if (strcmp(name, "verde") == 0) return "#00FF00";
+    else if (strcmp(name, "amarelo") == 0) return "#FFFF00";
+    else if (strcmp(name, "preto") == 0) return "#000000";
+    else if (strcmp(name, "branco") == 0) return "#FFFFFF";
+    else if (strcmp(name, "roxo") == 0) return "#800080";
+    else if (strcmp(name, "laranja") == 0) return "#FFA500";
+    else if (strcmp(name, "cinza") == 0) return "#808080";
+    else {
+        fprintf(stderr, "Unknown color: %s. Using black.\n", name);
+        return "#000000";
+    }
+}
 
 /* AST Node Creation Functions */
 ASTNode* create_assign_node(char *id, ASTNode *expr) {
@@ -143,13 +160,12 @@ double eval_expr(ASTNode *node, SymbolTable *symbol_table) {
     }
 }
 
-void execute_node(ASTNode *node, SymbolTable *symbol_table) {
+void execute_node(ASTNode *node, SymbolTable *symbol_table, FILE *svg_file) {
     if (!node) return;
     
     switch (node->type) {
         case NODE_ASSIGN: {
             double value = eval_expr(node->data.assign.expr, symbol_table);
-            printf("ASSIGN: %s = %.2f\n", node->data.assign.id, value);
             symbol_table_set(symbol_table, node->data.assign.id, value);
             break;
         }
@@ -157,7 +173,8 @@ void execute_node(ASTNode *node, SymbolTable *symbol_table) {
             double x = eval_expr(node->data.circle.x, symbol_table);
             double y = eval_expr(node->data.circle.y, symbol_table);
             double radius = eval_expr(node->data.circle.radius, symbol_table);
-            printf("DRAW CIRCLE: x=%.2f y=%.2f radius=%.2f\n", x, y, radius);
+            fprintf(svg_file, "<circle cx=\"%g\" cy=\"%g\" r=\"%g\" stroke=\"%s\" fill=\"none\"/>\n",
+                    x, y, radius, current_color);
             break;
         }
         case NODE_RECT: {
@@ -165,19 +182,20 @@ void execute_node(ASTNode *node, SymbolTable *symbol_table) {
             double y = eval_expr(node->data.rect.y, symbol_table);
             double width = eval_expr(node->data.rect.width, symbol_table);
             double height = eval_expr(node->data.rect.height, symbol_table);
-            printf("DRAW RECT: x=%.2f y=%.2f width=%.2f height=%.2f\n", x, y, width, height);
+            fprintf(svg_file, "<rect x=\"%g\" y=\"%g\" width=\"%g\" height=\"%g\" stroke=\"%s\" fill=\"none\"/>\n",
+                    x, y, width, height, current_color);
             break;
         }
         case NODE_IF:
             if (eval_expr(node->data.if_stmt.cond, symbol_table)) {
-                execute_node(node->data.if_stmt.if_body, symbol_table);
+                execute_node(node->data.if_stmt.if_body, symbol_table,svg_file);
             }
             break;
         case NODE_IF_ELSE:
             if (eval_expr(node->data.if_else_stmt.cond, symbol_table)) {
-                execute_node(node->data.if_else_stmt.if_body, symbol_table);
+                execute_node(node->data.if_else_stmt.if_body, symbol_table,svg_file);
             } else {
-                execute_node(node->data.if_else_stmt.else_body, symbol_table);
+                execute_node(node->data.if_else_stmt.else_body, symbol_table,svg_file);
             }
             break;
         case NODE_LINE: {
@@ -185,23 +203,21 @@ void execute_node(ASTNode *node, SymbolTable *symbol_table) {
             double y1 = eval_expr(node->data.line.y1, symbol_table);
             double x2 = eval_expr(node->data.line.x2, symbol_table);
             double y2 = eval_expr(node->data.line.y2, symbol_table);
-            printf("DRAW LINE: (%f,%f) to (%f,%f)\n", x1, y1, x2, y2);
+            fprintf(svg_file, "<line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" stroke=\"%s\"/>\n",
+                    x1, y1, x2, y2, current_color);
             break;
         }
         case NODE_COLOR:
-            printf("SET COLOR: %s\n", node->data.color.color);
+            current_color = color_name_to_hex(node->data.color.color);
             break;
         case NODE_LOOP:
-            printf("START LOOP: %d iterations\n", node->data.loop.iterations);
             for (int i = 0; i < node->data.loop.iterations; i++) {
-                printf("LOOP ITERATION %d:\n", i+1);
-                execute_node(node->data.loop.body, symbol_table);
+                execute_node(node->data.loop.body, symbol_table, svg_file);
             }
-            printf("END LOOP\n");
             break;
         case NODE_PROGRAM:
             for (int i = 0; i < node->data.program.count; i++) {
-                execute_node(node->data.program.stmts[i], symbol_table);
+                execute_node(node->data.program.stmts[i], symbol_table, svg_file);
             }
             break;
         default:
@@ -380,15 +396,24 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    FILE *svg_file = fopen("output.svg", "w");
+    if (!svg_file) {
+        perror("Error creating SVG file");
+        fclose(yyin);
+        return 1;
+    }
+    fprintf(svg_file, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\" version=\"1.1\">\n");
+
     symbol_table_init(&symbol_table);
     
     if (yyparse() == 0) {
-        execute_node(root, symbol_table);
+        execute_node(root, symbol_table,svg_file);
     }
-    
+    fprintf(svg_file, "</svg>\n");
     free_node(root);
     symbol_table_destroy(symbol_table);
     fclose(yyin);
+    fclose(svg_file);
     return 0;
 }
 

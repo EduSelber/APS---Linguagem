@@ -82,6 +82,23 @@ extern FILE *yyin;
 extern SymbolTable *symbol_table;
 
 ASTNode *root = NULL;
+static const char *current_color = "#000000"; 
+
+const char* color_name_to_hex(const char *name) {
+    if (strcmp(name, "azul") == 0) return "#0000FF";
+    else if (strcmp(name, "vermelho") == 0) return "#FF0000";
+    else if (strcmp(name, "verde") == 0) return "#00FF00";
+    else if (strcmp(name, "amarelo") == 0) return "#FFFF00";
+    else if (strcmp(name, "preto") == 0) return "#000000";
+    else if (strcmp(name, "branco") == 0) return "#FFFFFF";
+    else if (strcmp(name, "roxo") == 0) return "#800080";
+    else if (strcmp(name, "laranja") == 0) return "#FFA500";
+    else if (strcmp(name, "cinza") == 0) return "#808080";
+    else {
+        fprintf(stderr, "Unknown color: %s. Using black.\n", name);
+        return "#000000";
+    }
+}
 
 /* AST Node Creation Functions */
 ASTNode* create_assign_node(char *id, ASTNode *expr) {
@@ -213,13 +230,12 @@ double eval_expr(ASTNode *node, SymbolTable *symbol_table) {
     }
 }
 
-void execute_node(ASTNode *node, SymbolTable *symbol_table) {
+void execute_node(ASTNode *node, SymbolTable *symbol_table, FILE *svg_file) {
     if (!node) return;
     
     switch (node->type) {
         case NODE_ASSIGN: {
             double value = eval_expr(node->data.assign.expr, symbol_table);
-            printf("ASSIGN: %s = %.2f\n", node->data.assign.id, value);
             symbol_table_set(symbol_table, node->data.assign.id, value);
             break;
         }
@@ -227,7 +243,8 @@ void execute_node(ASTNode *node, SymbolTable *symbol_table) {
             double x = eval_expr(node->data.circle.x, symbol_table);
             double y = eval_expr(node->data.circle.y, symbol_table);
             double radius = eval_expr(node->data.circle.radius, symbol_table);
-            printf("DRAW CIRCLE: x=%.2f y=%.2f radius=%.2f\n", x, y, radius);
+            fprintf(svg_file, "<circle cx=\"%g\" cy=\"%g\" r=\"%g\" stroke=\"%s\" fill=\"none\"/>\n",
+                    x, y, radius, current_color);
             break;
         }
         case NODE_RECT: {
@@ -235,19 +252,20 @@ void execute_node(ASTNode *node, SymbolTable *symbol_table) {
             double y = eval_expr(node->data.rect.y, symbol_table);
             double width = eval_expr(node->data.rect.width, symbol_table);
             double height = eval_expr(node->data.rect.height, symbol_table);
-            printf("DRAW RECT: x=%.2f y=%.2f width=%.2f height=%.2f\n", x, y, width, height);
+            fprintf(svg_file, "<rect x=\"%g\" y=\"%g\" width=\"%g\" height=\"%g\" stroke=\"%s\" fill=\"none\"/>\n",
+                    x, y, width, height, current_color);
             break;
         }
         case NODE_IF:
             if (eval_expr(node->data.if_stmt.cond, symbol_table)) {
-                execute_node(node->data.if_stmt.if_body, symbol_table);
+                execute_node(node->data.if_stmt.if_body, symbol_table,svg_file);
             }
             break;
         case NODE_IF_ELSE:
             if (eval_expr(node->data.if_else_stmt.cond, symbol_table)) {
-                execute_node(node->data.if_else_stmt.if_body, symbol_table);
+                execute_node(node->data.if_else_stmt.if_body, symbol_table,svg_file);
             } else {
-                execute_node(node->data.if_else_stmt.else_body, symbol_table);
+                execute_node(node->data.if_else_stmt.else_body, symbol_table,svg_file);
             }
             break;
         case NODE_LINE: {
@@ -255,23 +273,21 @@ void execute_node(ASTNode *node, SymbolTable *symbol_table) {
             double y1 = eval_expr(node->data.line.y1, symbol_table);
             double x2 = eval_expr(node->data.line.x2, symbol_table);
             double y2 = eval_expr(node->data.line.y2, symbol_table);
-            printf("DRAW LINE: (%f,%f) to (%f,%f)\n", x1, y1, x2, y2);
+            fprintf(svg_file, "<line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" stroke=\"%s\"/>\n",
+                    x1, y1, x2, y2, current_color);
             break;
         }
         case NODE_COLOR:
-            printf("SET COLOR: %s\n", node->data.color.color);
+            current_color = color_name_to_hex(node->data.color.color);
             break;
         case NODE_LOOP:
-            printf("START LOOP: %d iterations\n", node->data.loop.iterations);
             for (int i = 0; i < node->data.loop.iterations; i++) {
-                printf("LOOP ITERATION %d:\n", i+1);
-                execute_node(node->data.loop.body, symbol_table);
+                execute_node(node->data.loop.body, symbol_table, svg_file);
             }
-            printf("END LOOP\n");
             break;
         case NODE_PROGRAM:
             for (int i = 0; i < node->data.program.count; i++) {
-                execute_node(node->data.program.stmts[i], symbol_table);
+                execute_node(node->data.program.stmts[i], symbol_table, svg_file);
             }
             break;
         default:
@@ -337,7 +353,7 @@ void free_node(ASTNode *node) {
     free(node);
 }
 
-#line 341 "parser.tab.c"
+#line 357 "parser.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -809,10 +825,10 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   297,   297,   298,   307,   308,   309,   310,   311,   315,
-     316,   325,   328,   334,   335,   336,   340,   344,   350,   351,
-     352,   353,   354,   355,   356,   357,   358,   359,   360,   361,
-     362,   366
+       0,   313,   313,   314,   323,   324,   325,   326,   327,   331,
+     332,   341,   344,   350,   351,   352,   356,   360,   366,   367,
+     368,   369,   370,   371,   372,   373,   374,   375,   376,   377,
+     378,   382
 };
 #endif
 
@@ -1461,197 +1477,197 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* program: %empty  */
-#line 297 "parser.y"
+#line 313 "parser.y"
                 { (yyval.ast) = create_program_node(NULL, 0); root = (yyval.ast); }
-#line 1467 "parser.tab.c"
+#line 1483 "parser.tab.c"
     break;
 
   case 3: /* program: program stmt  */
-#line 298 "parser.y"
+#line 314 "parser.y"
                    {
         ASTNode **new_stmts = realloc((yyvsp[-1].ast)->data.program.stmts, ((yyvsp[-1].ast)->data.program.count + 1) * sizeof(ASTNode*));
         new_stmts[(yyvsp[-1].ast)->data.program.count] = (yyvsp[0].ast);
         (yyval.ast) = create_program_node(new_stmts, (yyvsp[-1].ast)->data.program.count + 1);
         root = (yyval.ast);
     }
-#line 1478 "parser.tab.c"
+#line 1494 "parser.tab.c"
     break;
 
   case 4: /* stmt: shape_stmt ';'  */
-#line 307 "parser.y"
+#line 323 "parser.y"
                    { (yyval.ast) = (yyvsp[-1].ast); }
-#line 1484 "parser.tab.c"
+#line 1500 "parser.tab.c"
     break;
 
   case 5: /* stmt: color_stmt ';'  */
-#line 308 "parser.y"
+#line 324 "parser.y"
                      { (yyval.ast) = (yyvsp[-1].ast); }
-#line 1490 "parser.tab.c"
+#line 1506 "parser.tab.c"
     break;
 
   case 6: /* stmt: assignment ';'  */
-#line 309 "parser.y"
+#line 325 "parser.y"
                      { (yyval.ast) = (yyvsp[-1].ast); }
-#line 1496 "parser.tab.c"
+#line 1512 "parser.tab.c"
     break;
 
   case 7: /* stmt: loop  */
-#line 310 "parser.y"
+#line 326 "parser.y"
            { (yyval.ast) = (yyvsp[0].ast); }
-#line 1502 "parser.tab.c"
+#line 1518 "parser.tab.c"
     break;
 
   case 9: /* assignment: IDENTIFIER ASSIGN expr  */
-#line 315 "parser.y"
+#line 331 "parser.y"
                            { (yyval.ast) = create_assign_node((yyvsp[-2].str), (yyvsp[0].ast)); }
-#line 1508 "parser.tab.c"
+#line 1524 "parser.tab.c"
     break;
 
   case 10: /* assignment: IDENTIFIER ADD_ASSIGN expr  */
-#line 316 "parser.y"
+#line 332 "parser.y"
                                  {
         ASTNode *ident = create_expr_ident_node((yyvsp[-2].str));
         ASTNode *add = create_expr_binop_node('+', ident, (yyvsp[0].ast));
         (yyval.ast) = create_assign_node((yyvsp[-2].str), add);
         free((yyvsp[-2].str));
     }
-#line 1519 "parser.tab.c"
-    break;
-
-  case 11: /* if_stmt: SE '(' expr ')' '{' program '}' SENAO '{' program '}'  */
-#line 325 "parser.y"
-                                                          {
-        (yyval.ast) = create_if_else_node((yyvsp[-8].ast), (yyvsp[-5].ast), (yyvsp[-1].ast));
-    }
-#line 1527 "parser.tab.c"
-    break;
-
-  case 12: /* if_stmt: SE '(' expr ')' '{' program '}'  */
-#line 328 "parser.y"
-                                      {
-        (yyval.ast) = create_if_node((yyvsp[-4].ast), (yyvsp[-1].ast));
-    }
 #line 1535 "parser.tab.c"
     break;
 
+  case 11: /* if_stmt: SE '(' expr ')' '{' program '}' SENAO '{' program '}'  */
+#line 341 "parser.y"
+                                                          {
+        (yyval.ast) = create_if_else_node((yyvsp[-8].ast), (yyvsp[-5].ast), (yyvsp[-1].ast));
+    }
+#line 1543 "parser.tab.c"
+    break;
+
+  case 12: /* if_stmt: SE '(' expr ')' '{' program '}'  */
+#line 344 "parser.y"
+                                      {
+        (yyval.ast) = create_if_node((yyvsp[-4].ast), (yyvsp[-1].ast));
+    }
+#line 1551 "parser.tab.c"
+    break;
+
   case 13: /* shape_stmt: CIRCULO X expr Y expr RAIO expr  */
-#line 334 "parser.y"
+#line 350 "parser.y"
                                     { (yyval.ast) = create_circle_node((yyvsp[-4].ast), (yyvsp[-2].ast), (yyvsp[0].ast)); }
-#line 1541 "parser.tab.c"
+#line 1557 "parser.tab.c"
     break;
 
   case 14: /* shape_stmt: RETANGULO X expr Y expr LARGURA expr ALTURA expr  */
-#line 335 "parser.y"
+#line 351 "parser.y"
                                                        { (yyval.ast) = create_rect_node((yyvsp[-6].ast), (yyvsp[-4].ast), (yyvsp[-2].ast), (yyvsp[0].ast)); }
-#line 1547 "parser.tab.c"
+#line 1563 "parser.tab.c"
     break;
 
   case 15: /* shape_stmt: LINHA X expr Y expr X expr Y expr  */
-#line 336 "parser.y"
+#line 352 "parser.y"
                                         { (yyval.ast) = create_line_node((yyvsp[-6].ast), (yyvsp[-4].ast), (yyvsp[-2].ast), (yyvsp[0].ast)); }
-#line 1553 "parser.tab.c"
+#line 1569 "parser.tab.c"
     break;
 
   case 16: /* color_stmt: COR STRING  */
-#line 340 "parser.y"
+#line 356 "parser.y"
                { (yyval.ast) = create_color_node((yyvsp[0].str)); free((yyvsp[0].str)); }
-#line 1559 "parser.tab.c"
+#line 1575 "parser.tab.c"
     break;
 
   case 17: /* loop: REPETIR expr_value VEZES '{' program '}'  */
-#line 344 "parser.y"
+#line 360 "parser.y"
                                              {
         (yyval.ast) = create_loop_node((int)(yyvsp[-4].num), (yyvsp[-1].ast));
     }
-#line 1567 "parser.tab.c"
+#line 1583 "parser.tab.c"
     break;
 
   case 18: /* expr: NUMBER  */
-#line 350 "parser.y"
+#line 366 "parser.y"
            { (yyval.ast) = create_expr_num_node((yyvsp[0].num)); }
-#line 1573 "parser.tab.c"
+#line 1589 "parser.tab.c"
     break;
 
   case 19: /* expr: IDENTIFIER  */
-#line 351 "parser.y"
+#line 367 "parser.y"
                  { (yyval.ast) = create_expr_ident_node((yyvsp[0].str)); free((yyvsp[0].str)); }
-#line 1579 "parser.tab.c"
+#line 1595 "parser.tab.c"
     break;
 
   case 20: /* expr: expr '+' expr  */
-#line 352 "parser.y"
+#line 368 "parser.y"
                     { (yyval.ast) = create_expr_binop_node('+', (yyvsp[-2].ast), (yyvsp[0].ast)); }
-#line 1585 "parser.tab.c"
+#line 1601 "parser.tab.c"
     break;
 
   case 21: /* expr: expr '-' expr  */
-#line 353 "parser.y"
+#line 369 "parser.y"
                     { (yyval.ast) = create_expr_binop_node('-', (yyvsp[-2].ast), (yyvsp[0].ast)); }
-#line 1591 "parser.tab.c"
+#line 1607 "parser.tab.c"
     break;
 
   case 22: /* expr: expr '*' expr  */
-#line 354 "parser.y"
+#line 370 "parser.y"
                     { (yyval.ast) = create_expr_binop_node('*', (yyvsp[-2].ast), (yyvsp[0].ast)); }
-#line 1597 "parser.tab.c"
+#line 1613 "parser.tab.c"
     break;
 
   case 23: /* expr: expr '/' expr  */
-#line 355 "parser.y"
+#line 371 "parser.y"
                     { (yyval.ast) = create_expr_binop_node('/', (yyvsp[-2].ast), (yyvsp[0].ast)); }
-#line 1603 "parser.tab.c"
+#line 1619 "parser.tab.c"
     break;
 
   case 24: /* expr: expr EQ expr  */
-#line 356 "parser.y"
+#line 372 "parser.y"
                    { (yyval.ast) = create_expr_binop_node('=', (yyvsp[-2].ast), (yyvsp[0].ast)); }
-#line 1609 "parser.tab.c"
+#line 1625 "parser.tab.c"
     break;
 
   case 25: /* expr: expr NE expr  */
-#line 357 "parser.y"
+#line 373 "parser.y"
                    { (yyval.ast) = create_expr_binop_node('!', (yyvsp[-2].ast), (yyvsp[0].ast)); }
-#line 1615 "parser.tab.c"
+#line 1631 "parser.tab.c"
     break;
 
   case 26: /* expr: expr LT expr  */
-#line 358 "parser.y"
+#line 374 "parser.y"
                    { (yyval.ast) = create_expr_binop_node('<', (yyvsp[-2].ast), (yyvsp[0].ast)); }
-#line 1621 "parser.tab.c"
+#line 1637 "parser.tab.c"
     break;
 
   case 27: /* expr: expr LE expr  */
-#line 359 "parser.y"
+#line 375 "parser.y"
                    { (yyval.ast) = create_expr_binop_node('l', (yyvsp[-2].ast), (yyvsp[0].ast)); }
-#line 1627 "parser.tab.c"
+#line 1643 "parser.tab.c"
     break;
 
   case 28: /* expr: expr GT expr  */
-#line 360 "parser.y"
+#line 376 "parser.y"
                    { (yyval.ast) = create_expr_binop_node('>', (yyvsp[-2].ast), (yyvsp[0].ast)); }
-#line 1633 "parser.tab.c"
+#line 1649 "parser.tab.c"
     break;
 
   case 29: /* expr: expr GE expr  */
-#line 361 "parser.y"
+#line 377 "parser.y"
                    { (yyval.ast) = create_expr_binop_node('g', (yyvsp[-2].ast), (yyvsp[0].ast)); }
-#line 1639 "parser.tab.c"
+#line 1655 "parser.tab.c"
     break;
 
   case 30: /* expr: '(' expr ')'  */
-#line 362 "parser.y"
+#line 378 "parser.y"
                    { (yyval.ast) = (yyvsp[-1].ast); }
-#line 1645 "parser.tab.c"
+#line 1661 "parser.tab.c"
     break;
 
   case 31: /* expr_value: expr  */
-#line 366 "parser.y"
+#line 382 "parser.y"
          { (yyval.num) = eval_expr((yyvsp[0].ast), symbol_table); free_node((yyvsp[0].ast)); }
-#line 1651 "parser.tab.c"
+#line 1667 "parser.tab.c"
     break;
 
 
-#line 1655 "parser.tab.c"
+#line 1671 "parser.tab.c"
 
       default: break;
     }
@@ -1844,7 +1860,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 369 "parser.y"
+#line 385 "parser.y"
 
 
 int main(int argc, char *argv[]) {
@@ -1859,15 +1875,24 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    FILE *svg_file = fopen("output.svg", "w");
+    if (!svg_file) {
+        perror("Error creating SVG file");
+        fclose(yyin);
+        return 1;
+    }
+    fprintf(svg_file, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\" version=\"1.1\">\n");
+
     symbol_table_init(&symbol_table);
     
     if (yyparse() == 0) {
-        execute_node(root, symbol_table);
+        execute_node(root, symbol_table,svg_file);
     }
-    
+    fprintf(svg_file, "</svg>\n");
     free_node(root);
     symbol_table_destroy(symbol_table);
     fclose(yyin);
+    fclose(svg_file);
     return 0;
 }
 
