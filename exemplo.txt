@@ -4,7 +4,7 @@ posicao = 50;
 
 circulo x posicao y 150 raio 30;
 
-se (posicao == 40){
+se (posicao == 40) {
     posicao +=100;
     circulo x posicao y 150 raio 30;   
 } senao{

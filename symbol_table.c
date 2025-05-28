@@ -3,7 +3,7 @@
 #include <string.h>
 #include "symbol_table.h"
 
-SymbolTable *symbol_table = NULL;  // Initialize as NULL pointer
+SymbolTable *symbol_table = NULL; 
 
 void symbol_table_init(SymbolTable **table) {
     *table = malloc(sizeof(SymbolTable));
@@ -24,7 +24,10 @@ void symbol_table_destroy(SymbolTable *table) {
 }
 
 double symbol_table_get(SymbolTable *table, const char *name) {
-    if (!table) return 0.0;
+    if (!table) {
+        yyerror("Symbol table is NULL");
+        exit(EXIT_FAILURE);
+    }
     
     SymbolTableEntry *entry = table->entries;
     while (entry != NULL) {
@@ -33,7 +36,12 @@ double symbol_table_get(SymbolTable *table, const char *name) {
         }
         entry = entry->next;
     }
-    return 0.0;
+    
+   
+    char error_msg[256];
+    snprintf(error_msg, sizeof(error_msg), "Undefined variable: '%s'", name);
+    yyerror(error_msg);
+    exit(EXIT_FAILURE);
 }
 
 void symbol_table_set(SymbolTable *table, const char *name, double value) {
