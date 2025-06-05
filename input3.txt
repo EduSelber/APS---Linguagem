@@ -1,0 +1,15 @@
+cor "preto";
+
+linha x 50 y 100 x 50 y 150;   
+circulo x 50 y 90 raio 10;      
+linha x 50 y 120 x 30 y 130;    
+circulo x 25 y 130 raio 5;      
+
+
+linha x 200 y 100 x 200 y 150;  
+circulo x 200 y 90 raio 10;    
+linha x 200 y 120 x 220 y 130;  
+circulo x 225 y 130 raio 5;     
+
+cor "vermelho";
+circulo x 125 y 50 raio 5; 

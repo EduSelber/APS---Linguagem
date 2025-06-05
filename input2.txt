@@ -1,0 +1,10 @@
+cor "preto";
+retangulo x 100 y 100 largura 100 altura 60;  
+cor "preto";
+retangulo x 120 y 70 largura 20 altura 30; 
+retangulo x 160 y 70 largura 20 altura 30; 
+cor "amarelo";
+retangulo x 110 y 50 largura 80 altura 20;   
+cor "vermelho";
+retangulo x 130 y 120 largura 10 altura 10; 
+retangulo x 160 y 120 largura 10 altura 10;

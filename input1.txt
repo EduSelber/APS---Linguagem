@@ -1,0 +1,13 @@
+cor "preto";
+retangulo x 0 y 0 largura 300 altura 200;
+cor "laranja";
+retangulo x 0 y 150 largura 300 altura 50;
+cor "preto";
+linha x 100 y 160 x 120 y 140; 
+linha x 120 y 140 x 140 y 160;  
+linha x 140 y 160 x 160 y 140;  
+circulo x 170 y 130 raio 10;    
+linha x 150 y 150 x 150 y 120;
+circulo x 150 y 110 raio 8;    
+cor "vermelho";
+circulo x 250 y 50 raio 40;     
