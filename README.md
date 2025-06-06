@@ -2,6 +2,12 @@
 
 Selber_Sketches é uma linguagem de programação focada na criação de elementos gráficos simples, como círculos, linhas e retângulos, por meio de comandos textuais. A linguagem foi projetada para ser intuitiva, permitindo o uso de variáveis, condições, laços de repetição e agrupamento de formas.
 
+### 📊 Apresentação da Linguagem Selber_Sketches
+
+Você pode acessar a apresentação completa clicando no link abaixo:
+
+[📥 Ver Apresentação (.pptx)](./Selber_Sketches.pptx)
+
 ## Sintaxe da Linguagem – EBNF
 
 A linguagem definida abaixo permite a criação de formas geométricas, grupos, estruturas condicionais e repetições, além do uso de variáveis com atribuições e expressões. A gramática está descrita na notação EBNF (Extended Backus-Naur Form), que facilita a visualização da estrutura e regras da linguagem.
