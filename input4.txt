@@ -1,0 +1,13 @@
+cor "azul";
+
+posicao = 50;
+
+circulo x posicao y 150 raio 30;
+
+posicao +=100;
+retangulo x (posicao + 50) y 200 largura 100 altura 50;
+
+repetir 10 vezes {
+    retangulo x (posicao + 50) y 200 largura 100 altura 50;
+    posicao += 20;
+}
