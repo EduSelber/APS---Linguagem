@@ -6,7 +6,8 @@ Selber_Sketches é uma linguagem de programação focada na criação de element
 
 Você pode acessar a apresentação completa clicando no link abaixo:
 
-[📥 Ver Apresentação (.pptx)](./Selber_Sketches.pptx)
+[📥 Ver Apresentação (.pdf)](./Selber_Sketches.pdf)
+
 
 ## Sintaxe da Linguagem – EBNF
 
