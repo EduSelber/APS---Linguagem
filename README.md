@@ -6,7 +6,7 @@ Selber_Sketches é uma linguagem de programação focada na criação de element
 
 Você pode acessar a apresentação completa clicando no link abaixo:
 
-[📥 Ver Apresentação (.pdf)](./Selber_Sketches.pdf)
+[📥 Ver Apresentação (.pdf)](./Selber_Sketches_apresentacao.pdf)
 
 
 ## Sintaxe da Linguagem – EBNF
@@ -94,45 +94,26 @@ repetir 10 vezes {
 ./parser exemplo.txt
 ```
 
-## Output esperado
+## Output esperado:
+### Imagem:
+![imagem](output4.svg)
+
+### Código da imagem:
 ```
-SET COLOR: azul
-ASSIGN: posicao = 50.00
-DRAW CIRCLE: x=50.00 y=150.00 radius=30.00
-ASSIGN: posicao = 150.00
-DRAW RECT: x=200.00 y=200.00 width=100.00 height=50.00
-START LOOP: 10 iterations
-LOOP ITERATION 1:
-DRAW RECT: x=200.00 y=200.00 width=100.00 height=50.00
-ASSIGN: posicao = 170.00
-LOOP ITERATION 2:
-DRAW RECT: x=220.00 y=200.00 width=100.00 height=50.00
-ASSIGN: posicao = 190.00
-LOOP ITERATION 3:
-DRAW RECT: x=240.00 y=200.00 width=100.00 height=50.00
-ASSIGN: posicao = 210.00
-LOOP ITERATION 4:
-DRAW RECT: x=260.00 y=200.00 width=100.00 height=50.00
-ASSIGN: posicao = 230.00
-LOOP ITERATION 5:
-DRAW RECT: x=280.00 y=200.00 width=100.00 height=50.00
-ASSIGN: posicao = 250.00
-LOOP ITERATION 6:
-DRAW RECT: x=300.00 y=200.00 width=100.00 height=50.00
-ASSIGN: posicao = 270.00
-LOOP ITERATION 7:
-DRAW RECT: x=320.00 y=200.00 width=100.00 height=50.00
-ASSIGN: posicao = 290.00
-LOOP ITERATION 8:
-DRAW RECT: x=340.00 y=200.00 width=100.00 height=50.00
-ASSIGN: posicao = 310.00
-LOOP ITERATION 9:
-DRAW RECT: x=360.00 y=200.00 width=100.00 height=50.00
-ASSIGN: posicao = 330.00
-LOOP ITERATION 10:
-DRAW RECT: x=380.00 y=200.00 width=100.00 height=50.00
-ASSIGN: posicao = 350.00
-END LOOP
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" version="1.1">
+<circle cx="50" cy="150" r="30" stroke="#0000FF" fill="none"/>
+<rect x="200" y="200" width="100" height="50" stroke="#0000FF" fill="none"/>
+<rect x="200" y="200" width="100" height="50" stroke="#0000FF" fill="none"/>
+<rect x="220" y="200" width="100" height="50" stroke="#0000FF" fill="none"/>
+<rect x="240" y="200" width="100" height="50" stroke="#0000FF" fill="none"/>
+<rect x="260" y="200" width="100" height="50" stroke="#0000FF" fill="none"/>
+<rect x="280" y="200" width="100" height="50" stroke="#0000FF" fill="none"/>
+<rect x="300" y="200" width="100" height="50" stroke="#0000FF" fill="none"/>
+<rect x="320" y="200" width="100" height="50" stroke="#0000FF" fill="none"/>
+<rect x="340" y="200" width="100" height="50" stroke="#0000FF" fill="none"/>
+<rect x="360" y="200" width="100" height="50" stroke="#0000FF" fill="none"/>
+<rect x="380" y="200" width="100" height="50" stroke="#0000FF" fill="none"/>
+</svg>
 ```
 ## Características
 
