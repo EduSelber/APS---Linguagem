@@ -115,6 +115,7 @@ repetir 10 vezes {
 <rect x="380" y="200" width="100" height="50" stroke="#0000FF" fill="none"/>
 </svg>
 ```
+Para visualizar a imagem gerada pelo código, recomenda-se utilizar um visualizador online como o [SVG Viewer](https://www.svgviewer.dev).
 ## Características
 
 - **Formas básicas**: `circulo`, `retangulo`, `linha`
